@@ -1,0 +1,28 @@
+{
+  "name": "devops-playground",
+  "version": "1.0.0",
+  "description": "Minimal DevOps showcase API built with Node.js, Express, Docker, Docker Compose and GitHub Actions.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest",
+    "test:ci": "jest --ci --runInBand"
+  },
+  "keywords": [
+    "devops",
+    "docker",
+    "github-actions",
+    "ci-cd",
+    "express"
+  ],
+  "author": "Nadjide Omar",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  }
+}
