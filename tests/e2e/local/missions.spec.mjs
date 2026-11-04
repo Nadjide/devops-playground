@@ -1,17 +1,15 @@
 import { spawnSync } from 'node:child_process';
-import { expect, test } from '@playwright/test';
+import { endSession, expect, objective, startMission, test } from './helpers.mjs';
 
 const ownedContainers = () => spawnSync('docker', ['ps', '-aq', '--filter', 'label=devops-playground.managed=true',
   '--filter', 'label=devops-playground.role=workload'], { encoding: 'utf8' }).stdout.trim().split('\n').filter(Boolean);
 
-const objective = (page, label) => page.getByRole('listitem').filter({ hasText: label });
-
 test('completes M01 against real Docker through the workbench', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  await expect(page.getByText('Local Docker')).toBeVisible();
+  await startMission(page, 'stopped-container', 'Restore the API');
+  await expect(page.getByText('Local Docker', { exact: true })).toBeVisible();
   const containers = page.getByRole('list', { name: 'Session containers' });
-  await expect(containers.getByText('stopped', { exact: true })).toBeVisible({ timeout: 150_000 });
+  await expect(containers.getByText('stopped', { exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(containers).toContainText('Docker');
   expect(ownedContainers()).toHaveLength(1);
 
@@ -30,22 +28,15 @@ test('completes M01 against real Docker through the workbench', async ({ page })
   await expect(page.getByRole('complementary', { name: 'Mission' }).getByText('Mission complete')).toBeVisible({ timeout: 30_000 });
   expect(ownedContainers()).toHaveLength(1);
 
-  await page.getByRole('button', { name: /Session/ }).click();
-  await page.getByRole('menuitem', { name: /End session/ }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'End session' }).click();
-  await expect(page.getByText('This session has ended and its resources were removed.')).toBeVisible({ timeout: 60_000 });
+  await endSession(page);
   expect(ownedContainers()).toHaveLength(0);
 });
 
 test('recovers the broken release with a real rollback from the Pipeline panel', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  await expect(page.getByRole('list', { name: 'Session containers' })).toBeVisible({ timeout: 150_000 });
-  await page.getByRole('combobox', { name: 'Mission' }).selectOption('broken-release');
-  await page.getByRole('button', { name: 'Start new session' }).click();
-  await expect(page.getByRole('heading', { name: 'Recover a broken release' })).toBeVisible({ timeout: 150_000 });
+  await startMission(page, 'broken-release', 'Recover a broken release');
   const containers = page.getByRole('list', { name: 'Session containers' });
-  await expect(containers.getByText('exited', { exact: true })).toBeVisible({ timeout: 150_000 });
+  await expect(containers.getByText('exited', { exact: true })).toBeVisible({ timeout: 60_000 });
 
   await page.getByRole('button', { name: 'Read logs of api' }).click();
   await page.getByRole('tablist', { name: 'Operations panels' }).getByRole('tab', { name: 'Pipeline' }).click();
@@ -57,9 +48,6 @@ test('recovers the broken release with a real rollback from the Pipeline panel',
   await expect(page.getByRole('article', { name: 'Observed version' })).toContainText('1.0.0');
   await expect(page.getByRole('complementary', { name: 'Mission' }).getByText('Mission complete')).toBeVisible();
 
-  await page.getByRole('button', { name: /Session/ }).click();
-  await page.getByRole('menuitem', { name: /End session/ }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'End session' }).click();
-  await expect(page.getByText('This session has ended and its resources were removed.')).toBeVisible({ timeout: 60_000 });
+  await endSession(page);
   expect(ownedContainers()).toHaveLength(0);
 });

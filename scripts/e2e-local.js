@@ -13,7 +13,7 @@ const playwright = path.join(root, 'node_modules', '@playwright', 'test', 'cli.j
 
 let status = run(process.execPath, [path.join(__dirname, 'playground.js'), 'local']);
 if (status === 0) {
-  status = run(process.execPath, [playwright, 'test', '--project=local', ...process.argv.slice(2)]);
+  status = run(process.execPath, [playwright, 'test', '--project=local', '--workers=1', ...process.argv.slice(2)]);
 }
 const down = run(process.execPath, [path.join(__dirname, 'playground.js'), 'down']);
 process.exit(status || down);
