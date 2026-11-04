@@ -7,16 +7,24 @@ import { operationSchema } from './operations.js';
 import { missionProgressSchema } from './missions.js';
 import { containerObservationSchema, resourceSchema } from './session.js';
 import { LIMITS, logLineSchema, probeObservationSchema } from './observations.js';
+import { pipelineSchema } from './pipeline.js';
 
 const payloadSchemas = {
   'session.status-changed': z.strictObject({ status: sessionStatusSchema }),
   'session.reset': z.strictObject({
     resources: z.array(resourceSchema).max(3),
     mission: missionProgressSchema,
+    pipeline: pipelineSchema,
   }),
+  'pipeline.updated': pipelineSchema,
   'resource.observed': containerObservationSchema.omit({ source: true, observedAt: true })
     .partial().extend({ resourceId: identifierSchema, state: containerObservationSchema.shape.state }),
-  'resource.configured': z.strictObject({ resourceId: identifierSchema, appPort: portSchema }),
+  'resource.configured': z.strictObject({
+    resourceId: identifierSchema,
+    appPort: portSchema.optional(),
+    image: z.string().min(1).max(256).optional(),
+  }).refine((change) => change.appPort !== undefined || change.image !== undefined,
+    'A configuration change needs an appPort or an image.'),
   'mission.updated': missionProgressSchema,
   'probe.completed': probeObservationSchema,
   'log.appended': z.strictObject({ entries: z.array(logLineSchema).min(1).max(LIMITS.logBatch) }),

@@ -50,6 +50,7 @@ export function createSession({
     mission: freshMission(lab),
     probes: [],
     logs: emptyLogBuffer(),
+    pipeline: { knownGood: null, deployed: null, runs: [] },
     lastEventSequence: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
