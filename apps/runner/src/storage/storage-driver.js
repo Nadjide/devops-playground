@@ -5,8 +5,9 @@ import {
 import { DriverFailure } from '../docker/errors.js';
 import { createEmulatorContainer, emulatorFor, ensureEmulatorImage, waitForEmulator } from '../docker/emulators.js';
 import { createS3Adapter, LAB_OWNER, S3_REGION, S3_TEST_CREDENTIALS } from './s3-adapter.js';
+import { AZURITE_ACCOUNT, AZURITE_ACCOUNT_KEY, BLOB_API_VERSION, createBlobAdapter } from './blob-adapter.js';
 
-const ADAPTERS = { 'aws-s3': createS3Adapter };
+const ADAPTERS = { 'aws-s3': createS3Adapter, 'azure-blob': createBlobAdapter };
 
 /** Environment for a storage-capable workload: its target plus the emulator's test-only settings. */
 export function workloadStorageEnv(provider, target) {
@@ -18,6 +19,16 @@ export function workloadStorageEnv(provider, target) {
       `AWS_ACCESS_KEY_ID=${S3_TEST_CREDENTIALS.accessKeyId}`,
       `AWS_SECRET_ACCESS_KEY=${S3_TEST_CREDENTIALS.secretAccessKey}`,
       `AWS_REGION=${S3_REGION}`,
+    ];
+  }
+  if (provider === 'azure-blob') {
+    return [
+      'STORAGE_PROVIDER=azure-blob',
+      `STORAGE_ENDPOINT=${target.endpoint}`,
+      `STORAGE_NAMESPACE=${target.namespace}`,
+      `AZURE_STORAGE_ACCOUNT=${AZURITE_ACCOUNT}`,
+      `AZURE_STORAGE_KEY=${AZURITE_ACCOUNT_KEY}`,
+      `AZURE_STORAGE_API_VERSION=${BLOB_API_VERSION}`,
     ];
   }
   throw new DriverFailure('PROVIDER_UNAVAILABLE', `The local runner has no emulator for ${provider} yet.`);

@@ -107,6 +107,36 @@ test('serves health without storage configuration and hides the check', async ()
   }
 });
 
+test('round-trips a payload through the configured Blob target with Shared Key requests', async () => {
+  const storage = await fakeStorage();
+  const app = start({
+    STORAGE_PROVIDER: 'azure-blob',
+    STORAGE_NAMESPACE: 'lab-reports',
+    STORAGE_ENDPOINT: `http://127.0.0.1:${storage.port}/devstoreaccount1`,
+    AZURE_STORAGE_ACCOUNT: 'devstoreaccount1',
+    AZURE_STORAGE_KEY: Buffer.from('fixture-test-key').toString('base64'),
+    AZURE_STORAGE_API_VERSION: '2026-06-06',
+  });
+  try {
+    const port = await listeningPort(app);
+    const response = await fetch(`http://127.0.0.1:${port}/storage-check`);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.provider, 'azure-blob');
+    assert.equal(body.observedSha256, body.expectedSha256);
+    assert.deepEqual(storage.requests.map((item) => `${item.method} ${item.url}`), [
+      'PUT /devstoreaccount1/lab-reports/storage-check.txt',
+      'GET /devstoreaccount1/lab-reports/storage-check.txt',
+    ]);
+    assert.ok(storage.requests.every((item) => item.headers['x-ms-version'] === '2026-06-06'));
+    assert.match(storage.requests[0].headers.authorization, /^SharedKey devstoreaccount1:[A-Za-z0-9+/]+=*$/);
+    assert.match(app.output(), /Storage check passed: wrote and read back http:/);
+  } finally {
+    app.child.kill('SIGTERM');
+    storage.server.close();
+  }
+});
+
 test('signs deterministically for fixed inputs', () => {
   const url = new URL('http://storage:5000/lab-reports/a.txt');
   const now = new Date('2026-11-04T10:00:00Z');

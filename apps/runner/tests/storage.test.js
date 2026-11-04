@@ -4,7 +4,7 @@ import { createStorageDriver, workloadStorageEnv } from '../src/storage/storage-
 import { createEmulatorContainer, EMULATORS, ensureEmulatorImage } from '../src/docker/emulators.js';
 
 const AMBIENT = {
-  AWS_ACCESS_KEY_ID: 'AKIAAMBIENTEXAMPLE00',
+  AWS_ACCESS_KEY_ID: 'ambient-test-access-id',
   AWS_SECRET_ACCESS_KEY: 'ambient-secret-that-must-not-be-used',
   AWS_SESSION_TOKEN: 'ambient-session-token',
   AWS_PROFILE: 'production',
@@ -59,7 +59,13 @@ describe('S3 adapter configuration', () => {
       'STORAGE_PROVIDER=aws-s3', 'STORAGE_ENDPOINT=http://storage:5000', 'STORAGE_NAMESPACE=lab-reports',
       'AWS_ACCESS_KEY_ID=testing', 'AWS_SECRET_ACCESS_KEY=testing', 'AWS_REGION=us-east-1',
     ]);
-    expect(() => workloadStorageEnv('azure-blob', { namespace: 'x', endpoint: 'y' })).toThrow(expect.objectContaining({ code: 'PROVIDER_UNAVAILABLE' }));
+    const blob = workloadStorageEnv('azure-blob', { namespace: 'lab-reports', endpoint: 'http://storage:10000/devstoreaccount1' });
+    expect(blob.slice(0, 4)).toEqual([
+      'STORAGE_PROVIDER=azure-blob', 'STORAGE_ENDPOINT=http://storage:10000/devstoreaccount1', 'STORAGE_NAMESPACE=lab-reports',
+      'AZURE_STORAGE_ACCOUNT=devstoreaccount1',
+    ]);
+    expect(blob.at(-1)).toBe('AZURE_STORAGE_API_VERSION=2026-06-06');
+    expect(() => workloadStorageEnv('gcs', { namespace: 'x', endpoint: 'y' })).toThrow(expect.objectContaining({ code: 'PROVIDER_UNAVAILABLE' }));
   });
 });
 

@@ -33,8 +33,14 @@ jobs:
       - name: Lint JavaScript
         run: npm run lint
 
+      - name: Scan tracked files for credential-shaped secrets
+        run: npm run scan:secrets
+
       - name: Run tests
         run: npm run test:ci
+
+      - name: Test the storage-capable workload
+        run: npm test --prefix labs/fixtures/storage-api
 
       - name: Test playground packages
         run: npm run test:playground
@@ -186,7 +192,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run real local storage integration (pinned Moto emulator)
+      - name: Run real local storage integration (pinned Moto and Azurite)
         id: cloud
         run: npm run test:integration:cloud
 
@@ -198,7 +204,7 @@ jobs:
             echo ''
             echo '| Suite | Execution | Result |'
             echo '| --- | --- | --- |'
-            echo '| test:integration:cloud | Session-owned Moto 5.2.5 and the storage workload on the runner Docker daemon | ${{ steps.cloud.outcome }} |'
+            echo '| test:integration:cloud | Session-owned Moto 5.2.5, Azurite 3.37.0, and the storage workload on the runner Docker daemon | ${{ steps.cloud.outcome }} |'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show playground logs on failure

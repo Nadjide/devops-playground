@@ -43,3 +43,36 @@ test('completes the S3 provisioning mission against the local Moto emulator', as
   await endSession(page);
   expect(emulators()).toHaveLength(0);
 });
+
+test('switches to Azure Blob and completes the mission against the local Azurite emulator', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await startMission(page, 'storage-provision', 'Provision storage for a service (AWS S3)');
+  await page.getByRole('tablist', { name: 'Operations panels' }).getByRole('tab', { name: 'Cloud' }).click();
+  const cloud = page.locator('.cloud-panel');
+  await cloud.getByRole('group', { name: 'Storage provider' }).getByRole('button', { name: 'Azure Blob' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Start new session' }).click();
+  await expect(page.getByRole('heading', { name: 'Provision storage for a service (Azure Blob)' })).toBeVisible({ timeout: 150_000 });
+  await page.getByRole('tablist', { name: 'Operations panels' }).getByRole('tab', { name: 'Cloud' }).click();
+  await expect(cloud.getByLabel('Storage backend')).toContainText('Azurite', { timeout: 60_000 });
+  expect(emulators()).toHaveLength(1);
+
+  await terminal(page, 'az storage container create -n lab-reports');
+  await expect(page.getByTestId('terminal-host')).toContainText('"created": true', { timeout: 30_000 });
+  const upload = cloud.getByRole('form', { name: 'Write blob to lab-reports' });
+  await upload.getByLabel('Text content').fill('Report stored in Azurite');
+  await upload.getByRole('button', { name: 'Write blob' }).click();
+  await terminal(page, 'az storage blob download -c lab-reports -n notes.txt');
+  await expect(page.getByTestId('terminal-host')).toContainText('Report stored in Azurite', { timeout: 30_000 });
+  await terminal(page, 'curl http://api:3000/storage-check');
+  await expect(page.getByRole('complementary', { name: 'Mission' }).getByText('Mission complete')).toBeVisible({ timeout: 30_000 });
+
+  await page.screenshot({ path: testInfo.outputPath('azure-blob-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('tablist', { name: 'Workbench panels' }).getByRole('tab', { name: 'Cloud' }).click();
+  await expect(cloud.getByLabel('Storage backend')).toContainText('Azurite');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: testInfo.outputPath('azure-blob-mobile.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await endSession(page);
+  expect(emulators()).toHaveLength(0);
+});

@@ -13,8 +13,8 @@ in for Docker results, and a mocked test never claims that an image builds.
 | `npm run test:e2e:demo` | Five viewports, all missions including the S3 and Azure Blob storage missions and provider switching, terminal, pipeline, persistence and checkpoint migration, recovery, keyboard-only | Static build in Chromium, backend traffic blocked | Demo E2E |
 | `node scripts/check-playground-stack.js demo\|local` | Packaged boundaries: bindings, mounts, runner token, isolation | Real Compose stack | Playground stack |
 | `npm run test:integration:local` | M01-M03, real pipeline, controller crash recovery, runner outage, stress, security regressions | Real Docker daemon via the packaged portal | Playground stack |
-| `npm run test:e2e:local` | M01-M03 and the S3 provisioning mission in the browser, runner outage, phone layout | Chromium against real Docker and Moto | Playground stack |
-| `npm run test:integration:cloud` | S3 M04 and M05 with the workload round trip, endpoint and ownership refusals, emulator outage and reset, cleanup | Session-owned Moto 5.2.5 and the storage workload on real Docker | Cloud emulators |
+| `npm run test:e2e:local` | M01-M03 and both storage providers in the browser, provider switching, runner outage, phone layout | Chromium against real Docker, Moto, and Azurite | Playground stack |
+| `npm run test:integration:cloud` | S3 and Blob M04/M05, workload round trips, endpoint and ownership refusals, outages, reset, provider switching, restart recovery, cleanup | Session-owned Moto 5.2.5, Azurite 3.37.0, and the storage workload on real Docker | Cloud emulators |
 | Docker job | Original image and Compose healthcheck | Real Docker | Docker |
 
 ## Viewports
@@ -32,6 +32,7 @@ npm run test:playground
 npm run test:e2e:demo
 npm run test:integration:local
 npm run test:e2e:local
+npm run test:integration:cloud
 ```
 
 Failure artifacts (screenshots, traces, reports) are written to `test-results`

@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phases A and B merged; L14 and L15 merged; L16 in review; merges delegated for L01-L17 |
+| Current delivery stage | All planned implementations delivered through L17; current CI and merge state linked in the ledger |
 
 ## Reading Order
 
@@ -2731,6 +2731,7 @@ next lot covered by the active launch instruction.
 | `ready-for-review` | Acceptance satisfied and required checks green for the current PR head |
 | `merged` | Merge confirmed in the base branch and on GitHub |
 | `blocked` | Concrete external condition prevents the next required action |
+| Linked GitHub state | Live CI and merge state used for the final delivery handoff |
 
 Update only statuses supported by current evidence.
 When a PR records its own ready state, its eventual merged status can be
@@ -2759,8 +2760,8 @@ The ledger below describes the current verified execution state.
 | L13 | merged | feat/lot-13-core-release-readiness | [PR #13](https://github.com/Nadjide/devops-playground/pull/13) | README, screenshots, `verify:playground` acceptance report from a clean clone, secret scan, per-session terminal transcript; [CI run 41906515871](https://github.com/Nadjide/devops-playground/actions/runs/41906515871); squash commit `769f3ad` |
 | L14 | merged | feat/lot-14-simulated-s3-lab | [PR #14](https://github.com/Nadjide/devops-playground/pull/14) | Storage contract, session schema 2 and checkpoint migration, simulated S3, M04 and M05 for S3, Cloud panel, `aws s3` terminal subset; [CI run 41909130356](https://github.com/Nadjide/devops-playground/actions/runs/41909130356); squash commit `d3e1d3d` |
 | L15 | merged | feat/lot-15-simulated-azure-lab | [PR #15](https://github.com/Nadjide/devops-playground/pull/15) | Simulated Azure Blob provider, Azure M04 and M05, provider variants and confirmed switching, `az storage` terminal subset; [CI run 41911155862](https://github.com/Nadjide/devops-playground/actions/runs/41911155862); squash commit `2f27fed` |
-| L16 | pr-open | feat/lot-16-local-s3-lab | Pending | Pinned session-owned Moto 5.2.5, AWS SDK adapter with explicit endpoint and test credentials, dependency-free storage workload, local S3 M04 and M05, `test:integration:cloud`, Cloud emulators CI job |
-| L17 | planned | Pending | Pending | Pending |
+| L16 | merged | feat/lot-16-local-s3-lab | [PR #16](https://github.com/Nadjide/devops-playground/pull/16) | Pinned Moto 5.2.5, local S3 M04/M05 and cleanup; [CI run 41915834039](https://github.com/Nadjide/devops-playground/actions/runs/41915834039); squash commit `fa1ceee` |
+| L17 | [GitHub state](https://github.com/Nadjide/devops-playground/pull/17) | feat/lot-17-local-azure-lab | [PR #17](https://github.com/Nadjide/devops-playground/pull/17) | Azurite 3.37.0, Blob SDK 12.33.0/API 2026-06-06, actual M04/M05, 11 cloud integration tests, and provider browser acceptance |
 
 ### 26.3 Verification Record Format
 
@@ -3199,6 +3200,47 @@ the `BucketAlreadyOwnedByYou` error that the simulator reports. Anonymous reads
 are refused by Moto, so the workload signs its requests with Signature Version 4.
 Controller restart recovery re-observes storage from the emulator; it is
 exercised with Azure Blob in L17.
+
+### 26.20 L17 Azurite and Phase C Verification
+
+Validation began on 2026-11-04 and continued on 2026-11-05 (Europe/Paris).
+The local environment uses Node.js 22.22.2, npm 10.9.3, Docker Desktop Linux
+Engine 29.7.2, and Compose 5.4.0.
+
+L17 reuses the shared storage driver with a Blob SDK adapter. Azurite 3.37.0
+is pinned by digest, runs as `65534:65534` on the session's internal network,
+and exposes zero host ports. It runs only the Blob service, uses bounded
+in-memory storage, disables telemetry, and keeps API version checks enabled.
+The adapter and workload explicitly use API version `2026-06-06`, compatible
+with `@azure/storage-blob` 12.33.0. Blob downloads are size-bounded and use an
+ETag precondition to prevent a changed object from invalidating the size check.
+
+| Verification | Local result |
+| --- | --- |
+| Clean `npm ci` | Passed on Node.js 22.22.2 |
+| Lint | Passed |
+| Original API tests | 3 passed, fixture packages excluded from Jest discovery |
+| Storage workload tests | 5 passed, including signed Azure Blob write/read requests |
+| Domain/workbench/control/runner tests | 285 / 55 / 30 / 45 passed |
+| Demo browser suite | 31 passed, including both providers and M04/M05 |
+| Cloud integration | 11 passed against actual Azurite and Moto containers |
+| Actual Blob M04/M05 | Workload payload write/read and matching SHA-256 verified |
+| Isolation | Foreign namespaces and external endpoints refused; foreign installation container preserved |
+| Recovery | Controller restart re-observes emulator data and invalidates old round-trip evidence |
+| Reset and provider switch | Old emulator removed, new generation clean, no evidence carried across providers |
+| Local browser acceptance | Core/S3 scenarios passed; corrected storage rerun passed both providers, including Azure desktop and mobile screenshots |
+| Production dependency audit | Zero vulnerabilities; full development audit retains 10 low/moderate advisories |
+| Credential-shaped secret scan | Passed, including the newly tracked adapter and integration tests |
+| GitHub checks and merge | [PR #17 checks and merge record](https://github.com/Nadjide/devops-playground/pull/17) are authoritative for the published head |
+
+The local tests exercise the documented public Azurite development account,
+never an Azure subscription. Both storage providers use fixed emulator endpoints
+and explicit test credentials. Storage disappears when its emulator restarts or
+when the session ends. Core labs remain independent of the emulator images.
+
+The minimum development runtime now matches the locked jsdom dependencies,
+Node.js 22.22.2 (or a compatible newer LTS release). Validation used a task-local
+runtime.
 
 ## 27. Decisions and Scope Change Control
 
