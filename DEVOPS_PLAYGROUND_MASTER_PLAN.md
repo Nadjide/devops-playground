@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phase A merged; L09 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phase A merged; L10 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2748,7 +2748,7 @@ The ledger below describes the current verified execution state.
 | L06 | merged | feat/lot-06-simulated-pipeline | [PR #6](https://github.com/Nadjide/devops-playground/pull/6) | 207 domain tests, 41 workbench tests, 18 Playwright checks; [CI run 41850217454](https://github.com/Nadjide/devops-playground/actions/runs/41850217454); squash commit `4bf3b54` |
 | L07 | merged | feat/lot-07-demo-recovery | [PR #7](https://github.com/Nadjide/devops-playground/pull/7) | 219 domain tests, 51 workbench tests, 24 Playwright checks, Phase A matrix in section 26.10; [CI run 41851962026](https://github.com/Nadjide/devops-playground/actions/runs/41851962026); squash commit `9485b2a` |
 | L08 | merged | feat/lot-08-local-runner-foundations | [PR #8](https://github.com/Nadjide/devops-playground/pull/8) | 23 control, 13 runner tests, packaged stack checks on Docker Desktop and GitHub Actions; [CI run 41854698422](https://github.com/Nadjide/devops-playground/actions/runs/41854698422); squash commit `333f390` |
-| L09 | pr-open | feat/lot-09-local-docker-runtime | Pending | M01 and M02 against real Docker (API integration and browser), 26 control and 26 runner tests |
+| L09 | merged | feat/lot-09-local-docker-runtime | [PR #9](https://github.com/Nadjide/devops-playground/pull/9) | M01 and M02 against real Docker in integration and browser suites on Docker Desktop and GitHub Actions; [CI run 41859730546](https://github.com/Nadjide/devops-playground/actions/runs/41859730546); squash commit `6cdf3c9` |
 | L10 | pr-open | feat/lot-10-local-pipeline | Pending | Real local pipeline, M03 rollback, cancellation, browser flows |
 | L11 | planned | Pending | Pending | Pending |
 | L12 | planned | Pending | Pending | Pending |
