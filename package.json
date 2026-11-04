@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "private": true,
   "workspaces": [
-    "packages/lab-core"
+    "packages/lab-core",
+    "apps/web"
   ],
   "engines": {
     "node": ">=22.18.0"
@@ -17,7 +18,11 @@
     "test:ci": "jest --ci --runInBand",
     "lint": "eslint . --max-warnings 0",
     "test:core": "npm run test --workspace @devops-playground/lab-core",
-    "test:playground": "npm run test:core"
+    "test:web": "npm run test --workspace @devops-playground/web",
+    "test:playground": "npm run test:core && npm run test:web",
+    "dev:playground": "npm run dev --workspace @devops-playground/web",
+    "build:playground": "npm run build --workspace @devops-playground/web",
+    "test:e2e:demo": "npm run build:playground && playwright test --project=demo"
   },
   "keywords": [
     "devops",
@@ -33,7 +38,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
+    "@playwright/test": "^1.64.1",
     "eslint": "^10.0.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "jest": "^29.7.0",
     "supertest": "^7.0.0"
   },

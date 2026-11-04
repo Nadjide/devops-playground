@@ -3,3 +3,6 @@ export { labManifestSchema, objectiveEvidenceSchema, missionProgressSchema } fro
 export { containerObservationSchema, resourceSchema, sessionSchema } from './schemas/session.js';
 export { eventSchema } from './schemas/events.js';
 export { createSession, reduceSession, replaceSessionSnapshot, SessionStateError } from './engine/session.js';
+export { createLabSession } from './engine/lab-session.js';
+export { labCatalog, getLabManifest } from './missions/catalog.js';
+export { fixtureCatalog, getFixture, createFixtureResources } from './fixtures/catalog.js';

@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L01 ready for owner review |
+| Current delivery stage | L02 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2726,8 +2726,8 @@ The ledger below describes the current verified execution state.
 | Lot | Status | Actual branch | PR | Verification evidence |
 | --- | --- | --- | --- | --- |
 | L00 | accepted | Included with L01 | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | Document consistency checks and owner launch |
-| L01 | ready-for-review | feat/lot-01-domain-foundations | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | 91 domain tests, 3 API tests, lint, fresh install, Docker, Compose, and GitHub CI passed |
-| L02 | planned | Pending | Pending | Pending |
+| L01 | merged | feat/lot-01-domain-foundations | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | 91 domain tests, 3 API tests, lint, fresh install, Docker, Compose, and GitHub CI passed; squash commit `aaf3c8b` |
+| L02 | pr-open | feat/lot-02-workbench-shell | Pending | 12 workbench unit tests, 95 domain tests, static build, 7 Playwright demo checks across 5 viewports |
 | L03 | planned | Pending | Pending | Pending |
 | L04 | planned | Pending | Pending | Pending |
 | L05 | planned | Pending | Pending | Pending |
@@ -2801,7 +2801,26 @@ Documentation follow-up commits require checks for their current PR head before
 the final handoff. The PR's live checks show the latest verification state.
 
 Commits use the configured Nadjide identity and contain no AI co-author trailers.
-The owner controls merge authorization. L02 becomes eligible after L01 merges.
+The owner delegated merge authorization on 2026-11-04 (see section 27.4).
+L01 merged into `main` as squash commit `aaf3c8b`.
+
+### 26.5 L02 Local Verification
+
+Verified on 2026-11-04 in the owner's Windows environment with Node.js 22.18.0
+and Playwright 1.64.1 Chromium.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings, including JSX and React hooks rules |
+| `npm test` | Passed, 3 original API tests |
+| `npm run test:playground` | Passed, 95 domain tests and 12 workbench tests |
+| `npm run build:playground` | Passed, static output in `apps/web/dist` |
+| `npm run test:e2e:demo` | Passed, 7 checks at 1440x900, 1024x768, 768x1024, 390x844, and 320px |
+| Backend isolation | Every non-origin and `/api` request is aborted and asserted absent |
+
+The introductory `stopped-container` manifest moved into `labs/` with a
+validated catalog and fixture registry. Container operations remain unavailable
+capabilities until the deterministic simulator lands in L03.
 
 ## 27. Decisions and Scope Change Control
 
@@ -2851,6 +2870,15 @@ For an approved material change, record the date, owner instruction, decision,
 reason, affected contracts, affected lots, and new acceptance criteria.
 Update this plan in the same PR as the authorized change where practical.
 Preserve the previous decision's context in a short history entry.
+
+### 27.4 Recorded Owner Decisions
+
+| Date | Owner instruction | Decision | Affected lots |
+| --- | --- | --- | --- |
+| 2026-11-04 | Finish the complete roadmap and merge each lot | Merge authority delegated per section 29.3: squash-merge each lot PR after its PR-head checks pass, then start the next lot from `main` | L01-L17 |
+
+The delegation keeps one branch and one PR per lot, never pushes directly to
+`main`, and stops for material scope changes or external blockers.
 
 ## 28. Reference Material
 

@@ -168,16 +168,20 @@ The pipeline includes two jobs:
 
 The interactive workbench is being developed in independent feature lots.
 The shared domain workspace provides validated contracts and deterministic
-session state transitions.
+session state transitions. The React workbench opens directly in Demo mode
+and runs entirely in the browser.
 
 ```bash
+npm run dev:playground     # Vite dev server, prints its local URL
+npm run build:playground   # static build in apps/web/dist
 npm run lint
-npm run test:core
-npm run test:playground
+npm run test:playground    # domain and workbench unit tests
+npm run test:e2e:demo      # Playwright demo suite against the static build
 ```
 
-See the [implementation plan](DEVOPS_PLAYGROUND_MASTER_PLAN.md) for the roadmap
-and the [domain package](packages/lab-core/README.md) for its implemented API.
+See the [implementation plan](DEVOPS_PLAYGROUND_MASTER_PLAN.md) for the roadmap,
+the [domain package](packages/lab-core/README.md) for its implemented API, and
+the [workbench](apps/web/README.md) for the frontend structure.
 
 ## Why this project exists
 
