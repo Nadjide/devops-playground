@@ -11,7 +11,7 @@
     "apps/runner"
   ],
   "engines": {
-    "node": ">=22.18.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
     "start": "node src/server.js",
@@ -32,7 +32,7 @@
     "playground:status": "node scripts/playground.js status",
     "playground:down": "node scripts/playground.js down",
     "test:integration:local": "node --test --test-concurrency=1 tests/integration/local/missions.test.mjs tests/integration/local/pipeline.test.mjs tests/integration/local/recovery.test.mjs tests/integration/local/security.test.mjs",
-    "test:integration:cloud": "node --test --test-concurrency=1 tests/integration/cloud/s3.test.mjs",
+    "test:integration:cloud": "node --test --test-concurrency=1 tests/integration/cloud/s3.test.mjs tests/integration/cloud/blob.test.mjs",
     "test:e2e:local": "node scripts/e2e-local.js",
     "playground:cleanup": "node scripts/playground.js cleanup",
     "verify:playground": "node scripts/verify-playground.js",
@@ -60,6 +60,9 @@
     "supertest": "^7.0.0"
   },
   "jest": {
+    "roots": [
+      "<rootDir>/tests"
+    ],
     "testMatch": [
       "<rootDir>/tests/*.test.js"
     ]

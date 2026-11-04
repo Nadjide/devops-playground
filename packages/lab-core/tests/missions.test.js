@@ -165,8 +165,7 @@ describe('predicate freshness and registry', () => {
     expect(availableLabs({ mode: 'demo', operations: limited }).map((lab) => lab.id))
       .toEqual(['stopped-container', 'broken-release', 'storage-provision', 'blob-provision', 'storage-config', 'blob-config']);
     const local = availableLabs({ mode: 'local', operations: SIMULATED_OPERATIONS }).map((lab) => lab.id);
-    expect(local).toContain('storage-provision');
-    expect(local).not.toContain('blob-provision');
+    expect(local).toEqual(expect.arrayContaining(['storage-provision', 'blob-provision', 'storage-config', 'blob-config']));
     expect(labCatalog.every((lab) => lab.objectives.every((item) => item.predicateId in PREDICATES))).toBe(true);
   });
 

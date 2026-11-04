@@ -46,13 +46,19 @@ lab needs it; core labs never pull or start one.
 | --- | --- | --- | --- |
 | AWS S3 | Moto 5.2.5 in server mode | `motoserver/moto:5.2.5@sha256:59a1965d…` (pinned by digest) | ListBuckets, CreateBucket, DeleteBucket, Put/GetBucketTagging, PutObject, GetObject, ListObjectsV2, DeleteObject |
 
-The emulator joins the session's internal network as `storage`, publishes no
+Azure Blob uses Azurite 3.37.0, pinned to
+`mcr.microsoft.com/azure-storage/azurite:3.37.0@sha256:830430c1da1a2d537e08f3e6764dd1f5ae00cf0346bcaf625b968ec3f0971fd5`.
+The exercised operations are container create/list/properties/delete and block
+blob upload/download/properties/list/delete.
+
+Each emulator joins the session's internal network as `storage`, publishes no
 port, and runs as `65534:65534` with a read-only root filesystem, a 32 MiB
 `/tmp`, no capabilities, `no-new-privileges`, 256 MiB, 0.5 CPU, and 128
 processes. It carries the same ownership labels as the workload with the role
 `emulator`, so teardown and `playground:cleanup` remove it with the session.
-Moto keeps data in memory: ending or resetting the session removes it, and a
-restarted emulator is re-observed as empty.
+Moto and Azurite keep data in memory. Ending or resetting a session removes its
+data. A restarted emulator is re-observed as empty. Azurite runs only the Blob
+service, with a 64 MiB in-memory extent limit and telemetry disabled.
 
 The runner reaches it through `@aws-sdk/client-s3` 3.1159.0 with the endpoint
 `http://storage:5000`, region `us-east-1`, path-style addressing, and the fixed
@@ -61,8 +67,21 @@ is created, and explicit credentials, region, and endpoint mean environment
 variables, shared profiles, and instance metadata are never consulted.
 Namespaces are tagged `devops-playground-owner=lab`; anything else is read-only.
 
+The Azure adapter uses `@azure/storage-blob` 12.33.0, with an explicit service
+version `2026-06-06`, endpoint `http://storage:10000/devstoreaccount1`, and the
+documented public Azurite development account. It uses Shared Key authentication
+and ignores ambient Azure identity, connection strings, and account settings.
+Container metadata `devplaygroundowner=lab` identifies writable namespaces.
+Blob downloads are bounded by the observed size and protected by the observed
+ETag. The emulator's API version checks stay enabled.
+
+The supported API version is documented by both
+[Azurite 3.37.0](https://github.com/Azure/Azurite/blob/v3.37.0/README.md) and the
+[Blob SDK release history](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/storage/storage-blob/CHANGELOG.md).
+
 The storage workload (`labs/fixtures/storage-api`) has no dependencies: it signs
-S3 requests with Signature Version 4 through `node:crypto`. Its `/storage-check`
+S3 requests with Signature Version 4 and Blob requests with Shared Key through
+`node:crypto`. Its `/storage-check`
 writes a fresh payload through its configured target, reads it back, and
 answers `200` with matching SHA-256 digests or `503` with the provider error;
 the runner validates that response before it becomes evidence.

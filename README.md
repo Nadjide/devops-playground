@@ -45,12 +45,12 @@ being operated.
 | Local Docker | `npm run playground:local` | Real containers, networks, logs, probes, builds, and metrics through the internal runner | Docker with Linux containers |
 
 The mode is always visible in the top bar, and every observation carries its
-source (Simulated, Docker, or Probe). Local Docker never falls back to simulation.
+source (Simulated, Docker, Probe, or Emulator). Local Docker never falls back to simulation.
 
 ## Quickstart
 
-Prerequisites: Node.js 22.18 or later, npm, and for the packaged modes Docker
-Desktop or Docker Engine with the Compose v2 plugin.
+Prerequisites are Node.js 22.22.2 (or a supported newer LTS version), npm, and
+Docker Desktop or Docker Engine with the Compose plugin for packaged modes.
 
 ```bash
 git clone https://github.com/Nadjide/devops-playground.git
@@ -124,6 +124,38 @@ session from label-verified resources or to clean them up.
 daemon. Use Local Docker mode only on your own machine. The public-facing mode
 is the browser demo.
 
+## Cloud Storage Labs
+
+Both providers run locally through session-owned Docker emulators. Select a
+storage mission, open Cloud, and choose AWS S3 or Azure Blob. Switching provider
+starts a fresh session after confirmation and removes the previous resources.
+
+| Provider | Tested backend | Session endpoint |
+| --- | --- | --- |
+| AWS S3 | Moto 5.2.5, digest-pinned | `http://storage:5000` |
+| Azure Blob | Azurite 3.37.0, digest-pinned, Blob API `2026-06-06` | `http://storage:10000/devstoreaccount1` |
+
+For Azure, create the mission's container from the terminal.
+
+```text
+az storage container create -n lab-reports
+```
+
+Write `notes.txt` in the Cloud panel, then read it and verify the service's own
+storage round trip.
+
+```text
+az storage blob download -c lab-reports -n notes.txt
+curl http://api:3000/storage-check
+```
+
+An objective passes only after the workload writes and reads the expected
+payload through the selected emulator. Both emulators use in-memory storage.
+Reset, session end, and `playground:down` remove the session's owned resources.
+After an emulator restart, its data starts empty. The runner uses only explicit
+local endpoints and test credentials. See the [runner guide](apps/runner/README.md)
+for the supported APIs, resource limits, and authentication setup.
+
 ## Architecture
 
 ```text
@@ -175,15 +207,16 @@ npm run test:playground          # domain, workbench, control, runner unit and A
 npm run test:e2e:demo            # Playwright against the static demo, backend blocked
 npm run test:integration:local   # real Docker: missions, pipeline, recovery, security
 npm run test:e2e:local           # Playwright against real Docker
-npm run test:integration:cloud   # S3 missions against a real Moto emulator
-npm run verify:playground        # every core gate with an acceptance report
+npm run test:integration:cloud   # S3 and Blob against real local emulators
+npm run verify:playground       # complete core and cloud acceptance report
 ```
 
-GitHub Actions runs four jobs on every pull request: `Test` (lint and unit
+GitHub Actions runs five jobs on every pull request: `Test` (lint and unit
 suites), `Demo E2E` (simulated browser suite), `Playground stack` (packaged
-modes, real Docker integration, local browser suite), and `Docker` (the
-original image and Compose healthcheck). Job summaries separate simulated and
-real Docker results. See the [verification matrix](tests/README.md).
+modes, real Docker integration, local browser suite), `Cloud emulators`
+(actual S3 and Blob integration), and `Docker` (the original image and Compose
+healthcheck). Job summaries separate simulation, Docker, and emulator results.
+See the [verification matrix](tests/README.md).
 
 ## Troubleshooting
 
@@ -208,7 +241,7 @@ mission states, not installation problems.
 - Verified on Windows 11 with Docker Desktop (Engine 29.7.2, Compose 5.4.0) and on Ubuntu GitHub Actions runners.
 - macOS, rootless Docker, and remote Docker contexts are not verified.
 - One local session runs at a time; the workbench is single-user by design.
-- The storage missions never contact a cloud account. In the browser demo, AWS S3 and Azure Blob are simulated per session; in Local Docker mode the S3 missions run against a session-owned Moto 5.2.5 emulator and the real storage workload. Azure Blob local execution is planned in a later lot.
+- AWS S3 and Azure Blob are simulated per session in the browser demo. Local Docker uses session-owned Moto 5.2.5 and Azurite 3.37.0 emulators with the real storage workload and explicit test credentials.
 - Nothing is published automatically: hosting the demo or tagging a release is an explicit owner decision.
 
 ## Why This Project Exists

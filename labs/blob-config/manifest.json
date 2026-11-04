@@ -7,7 +7,8 @@
   "difficulty": "intermediate",
   "estimatedMinutes": 8,
   "supportedModes": [
-    "demo"
+    "demo",
+    "local"
   ],
   "fixtureId": "blob-misconfigured",
   "allowedOperations": [

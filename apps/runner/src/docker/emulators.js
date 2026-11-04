@@ -15,6 +15,18 @@ export const EMULATORS = Object.freeze({
     user: '65534:65534',
     cmd: null,
   }),
+  'azure-blob': Object.freeze({
+    provider: 'azure-blob',
+    label: 'Azurite 3.37.0 (Blob)',
+    image: 'mcr.microsoft.com/azure-storage/azurite:3.37.0@sha256:830430c1da1a2d537e08f3e6764dd1f5ae00cf0346bcaf625b968ec3f0971fd5',
+    port: 10000,
+    user: '65534:65534',
+    // Blob service only, in memory (read-only root filesystem), account name taken from the path.
+    cmd: Object.freeze([
+      'azurite-blob', '--blobHost', '0.0.0.0', '--blobPort', '10000', '--inMemoryPersistence', '--extentMemoryLimit', '64',
+      '--disableTelemetry', '--disableProductStyleUrl',
+    ]),
+  }),
 });
 
 export const EMULATOR_LIMITS = Object.freeze({
@@ -62,7 +74,7 @@ export async function ensureEmulatorImage(docker, emulator, { onLine } = {}) {
     await withTimeout(followPull(docker, stream, onLine), EMULATOR_LIMITS.pullTimeoutMs, 'EMULATOR_PULL_TIMEOUT');
   } catch {
     throw new DriverFailure('EMULATOR_PULL_FAILED',
-      `The ${emulator.label} emulator image could not be pulled. Check network access to Docker Hub, then retry.`, { retryable: true });
+      `The ${emulator.label} emulator image could not be pulled. Check access to its container registry, then retry.`, { retryable: true });
   }
   return { pulled: true };
 }
@@ -72,7 +84,7 @@ export function createEmulatorContainer(docker, { installationId, session, emula
   return docker.createContainer({
     name: resourceName(session.id, session.generation, EMULATOR_ALIAS),
     Image: emulator.image,
-    ...(emulator.cmd ? { Cmd: emulator.cmd } : {}),
+    ...(emulator.cmd ? { Cmd: [...emulator.cmd] } : {}),
     Labels: {
       ...ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId, fixtureId: session.fixtureId }),
       [LABELS.service]: EMULATOR_ALIAS,
