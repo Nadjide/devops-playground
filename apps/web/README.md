@@ -63,6 +63,16 @@ view without deleting domain logs, and shows a truncation notice when the
 at ingestion and always rendered as text. The Events panel lists orchestration
 events separately from workload logs.
 
+## Pipeline
+
+The Pipeline panel shows the fixed stage graph (validate, test, build, deploy,
+verify) for the latest run, per-stage logs, exit codes, and durations, the
+deployed release with its verification status, the last known-good release,
+and the run history. Runs deploy an approved candidate; rollback recreates the
+known-good release and verifies health and version. Cancel is offered only
+before deploy changes the service. The panel is labeled Simulated pipeline in
+Demo mode and stays distinct from the repository GitHub Actions workflow.
+
 ## Layout
 
 At widths of 1024 px and above the workbench uses a mission sidebar, two

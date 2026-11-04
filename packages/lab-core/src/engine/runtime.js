@@ -4,7 +4,8 @@ import { LIMITS } from '../schemas/observations.js';
 import { getLabManifest } from '../missions/catalog.js';
 import { evaluateMission } from '../missions/evaluate.js';
 import { getFixture } from '../fixtures/catalog.js';
-import { createSession, freshMission, reduceSession, SessionStateError } from './session.js';
+import { createSession, emptyPipeline, freshMission, reduceSession, SessionStateError } from './session.js';
+import { isCancellable } from '../pipeline/recorder.js';
 import { createSystemClock, delay } from './clock.js';
 import { sanitizeLogMessage } from '../commands/sanitize.js';
 import { AbortedError, DomainError, OperationFailure } from './errors.js';
@@ -21,6 +22,7 @@ export const READ_ONLY_OPERATIONS = Object.freeze([
   'container.inspect', 'container.logs', 'health.probe', 'version.probe',
 ]);
 const LIFECYCLE_OPERATIONS = ['session.reset', 'session.end'];
+const PIPELINE_OPERATIONS = ['pipeline.run', 'pipeline.rollback'];
 const ACTIVE = ['queued', 'running'];
 const TERMINAL = ['succeeded', 'failed', 'cancelled'];
 
@@ -212,6 +214,13 @@ export function createLabRuntime({
         guard();
         emitLogs(lines, { operationId: operation.id });
       },
+      /** Record final state after cancellation; still refuses a replaced generation. */
+      reconcile(type, payload) {
+        if (session.generation !== generation) {
+          return null;
+        }
+        return emit(type, payload, { operationId: operation.id });
+      },
       delay: (ms) => delay(clock, ms, signal),
       later: (ms, callback) => schedule(ms, callback, generation),
     };
@@ -245,6 +254,20 @@ export function createLabRuntime({
       active.delete(running.id);
       settle();
     }
+  }
+
+  /** Cancel runs immediately rather than queueing behind the run it targets. */
+  async function cancelPipeline(operation, targetId) {
+    const running = transition(operation, 'running', { startedAt: timestamp() });
+    const target = registry.get(targetId);
+    if (target?.status === 'queued') {
+      transition(target, 'cancelled', { finishedAt: timestamp() });
+    } else {
+      const handle = active.get(targetId);
+      handle?.controller.abort();
+      await handle?.done;
+    }
+    finish(running, { status: 'succeeded', result: { cancelled: targetId } });
   }
 
   async function drain() {
@@ -281,7 +304,11 @@ export function createLabRuntime({
       await executor.teardown?.({ session: clone(session), reason: 'reset' });
       const generation = session.generation + 1;
       const setup = await prepareFixture(generation);
-      emit('session.reset', { resources: setup.resources, mission: freshMission(lab) }, { generation });
+      emit('session.reset', {
+        resources: setup.resources,
+        mission: freshMission(lab),
+        pipeline: setup.pipeline ?? emptyPipeline(),
+      }, { generation });
       if (setup.logs?.length) {
         emitLogs(setup.logs);
       }
@@ -393,6 +420,23 @@ export function createLabRuntime({
     if (serviceId !== undefined && !session.resources.some((resource) => resource.serviceId === serviceId)) {
       throw new DomainError('UNKNOWN_SERVICE', 'The service does not belong to this session.', { status: 404 });
     }
+    const activePipeline = session.operations.find((operation) => ACTIVE.includes(operation.status) &&
+      PIPELINE_OPERATIONS.includes(operation.type));
+    if (PIPELINE_OPERATIONS.includes(request.type) && activePipeline) {
+      throw new DomainError('PIPELINE_BUSY', 'A pipeline run is already in progress.', {
+        status: 409, retryable: true, operationId: activePipeline.id,
+      });
+    }
+    if (request.type === 'pipeline.cancel') {
+      const run = session.pipeline.runs.find((item) => item.id === activePipeline?.id);
+      if (!activePipeline) {
+        throw new DomainError('NOTHING_TO_CANCEL', 'No pipeline run is in progress.', { status: 409 });
+      }
+      if (activePipeline.status === 'running' && !isCancellable(run)) {
+        throw new DomainError('CANCEL_UNSAFE',
+          'Cancellation is only safe before the deploy stage changes the service.', { status: 409, operationId: activePipeline.id });
+      }
+    }
     const readOnly = READ_ONLY_OPERATIONS.includes(request.type);
     const pending = session.operations.filter((operation) => ACTIVE.includes(operation.status) &&
       READ_ONLY_OPERATIONS.includes(operation.type) === readOnly).length;
@@ -424,7 +468,9 @@ export function createLabRuntime({
       runLifecycle(operation);
     } else {
       emit('operation.queued', { operation }, { operationId: operation.id });
-      if (readOnly) {
+      if (operation.type === 'pipeline.cancel') {
+        cancelPipeline(operation, activePipeline.id).catch(onError);
+      } else if (readOnly) {
         execute(operation);
       } else {
         mutationChain = mutationChain.then(() => execute(operation)).catch(onError);
@@ -449,6 +495,7 @@ export function createLabRuntime({
         mode,
         fixtureId,
         resources: setup.resources,
+        pipeline: setup.pipeline ?? emptyPipeline(),
         now: () => createdAt,
         nextId: () => {
           if (first) {

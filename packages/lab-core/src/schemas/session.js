@@ -6,6 +6,7 @@ import {
 import { operationSchema } from './operations.js';
 import { missionProgressSchema } from './missions.js';
 import { LIMITS, logBufferSchema, probeRecordSchema } from './observations.js';
+import { pipelineSchema } from './pipeline.js';
 
 export const containerObservationSchema = z.strictObject({
   state: z.enum(['created', 'starting', 'running', 'stopped', 'exited', 'removing', 'removed', 'unknown']),
@@ -51,6 +52,7 @@ export const sessionSchema = z.strictObject({
   mission: missionProgressSchema,
   probes: z.array(probeRecordSchema).max(LIMITS.probeHistory),
   logs: logBufferSchema,
+  pipeline: pipelineSchema,
   lastEventSequence: revisionSchema,
   createdAt: timestampSchema,
   updatedAt: timestampSchema,

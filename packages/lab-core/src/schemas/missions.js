@@ -31,7 +31,7 @@ export const labManifestSchema = z.strictObject({
     .refine((items) => new Set(items).size === items.length, 'Duplicate execution mode.'),
   fixtureId: slugSchema,
   fixtureOptions: z.array(slugSchema).min(1).max(8).optional(),
-  allowedOperations: z.array(operationTypeSchema).min(1).max(12)
+  allowedOperations: z.array(operationTypeSchema).min(1).max(16)
     .refine((items) => new Set(items).size === items.length, 'Duplicate operation type.'),
   objectives: z.array(objectiveDefinitionSchema).max(20)
     .refine((items) => new Set(items.map((item) => item.id)).size === items.length,

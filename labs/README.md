@@ -8,7 +8,8 @@ fixture and predicate identifiers resolve through explicit registries in
 | --- | --- | --- | --- |
 | `stopped-container` | Mission M01 | `api-stopped` | Read evidence, start the API, verify a fresh `/health` |
 | `wrong-port` | Mission M02 | `api-wrong-port` | Find the port mismatch, apply `appPort` 3000, verify health on port 3000 |
-| `free-exploration` | Exploration | `api-running` (also `api-stopped`, `api-wrong-port`) | Operate the API without objectives |
+| `broken-release` | Mission M03 | `api-broken-release` | Inspect the failed 1.1.0 release, roll back, verify version 1.0.0 and health |
+| `free-exploration` | Exploration | `api-running` (also `api-stopped`, `api-wrong-port`, `api-broken-release`) | Operate the API and the pipeline without objectives |
 
 ## Manifest Fields
 

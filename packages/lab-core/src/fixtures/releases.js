@@ -5,27 +5,35 @@
 export const API_IMAGE = 'devops-playground-lab/api';
 export const SERVICE_NAME = 'devops-playground';
 
-const releases = {
-  [`${API_IMAGE}:1.0.0`]: {
-    image: `${API_IMAGE}:1.0.0`,
-    version: '1.0.0',
-    startup: 'ok',
-  },
-  [`${API_IMAGE}:1.1.0`]: {
-    image: `${API_IMAGE}:1.1.0`,
-    version: '1.1.0',
-    startup: 'crash',
-  },
-};
+const definitions = [
+  { id: 'api-1-0-0', version: '1.0.0', startup: 'ok', summary: 'Known-good baseline release' },
+  { id: 'api-1-0-1', version: '1.0.1', startup: 'ok', summary: 'Patch release that starts normally' },
+  { id: 'api-1-1-0', version: '1.1.0', startup: 'crash', summary: 'Candidate that requires missing configuration at startup' },
+];
 
-export const releaseCatalog = Object.freeze(Object.values(releases).map((release) => Object.freeze(release)));
+export const releaseCatalog = Object.freeze(definitions.map((release) => Object.freeze({
+  ...release,
+  image: `${API_IMAGE}:${release.version}`,
+})));
 
 export function getRelease(image) {
-  const release = releases[image];
+  const release = releaseCatalog.find((item) => item.image === image);
   if (!release) {
     throw new RangeError(`Unapproved image: ${image}`);
   }
   return release;
+}
+
+export function getReleaseById(releaseId) {
+  const release = releaseCatalog.find((item) => item.id === releaseId);
+  if (!release) {
+    throw new RangeError(`Unapproved release: ${releaseId}`);
+  }
+  return release;
+}
+
+export function releaseRef(release) {
+  return { releaseId: release.id, image: release.image, version: release.version };
 }
 
 /** Log lines printed by the fixture workload; kept identical to labs/fixtures/api. */
@@ -41,7 +49,7 @@ export const workloadLines = {
   ],
   crash: (release) => [
     { stream: 'stdout', level: 'info', message: `> ${SERVICE_NAME}@${release.version} start` },
-    { stream: 'stderr', level: 'error', message: 'Error: FEATURE_FLAGS_URL is required by release 1.1.0 but is not configured' },
+    { stream: 'stderr', level: 'error', message: `Error: FEATURE_FLAGS_URL is required by release ${release.version} but is not configured` },
     { stream: 'stderr', level: 'error', message: '    at loadConfiguration (/app/src/config.js:14:11)' },
     { stream: 'stderr', level: 'error', message: 'Startup aborted, exiting with code 1' },
   ],
