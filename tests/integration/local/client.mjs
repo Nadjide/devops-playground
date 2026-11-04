@@ -13,6 +13,33 @@ export function docker(...args) {
   return result.stdout.trim();
 }
 
+/** Container logs with stdout and stderr combined, as `docker logs` prints them. */
+export function containerLogs(id) {
+  const result = spawnSync('docker', ['logs', id], { encoding: 'utf8', shell: false });
+  return `${result.stdout}${result.stderr}`;
+}
+
+/** End a session if it is still open, so one failing test cannot block the next one. */
+export async function endIfOpen(browser, sessionId) {
+  const current = await browser.session(sessionId);
+  if (current && current.status !== 'ended') {
+    await browser.run(sessionId, 'session.end');
+  }
+}
+
+/** Run `work` with a fresh session and always end it, so one failure cannot block the next test. */
+export async function withSession(browser, labId, work) {
+  const session = await browser.createSession(labId);
+  try {
+    return await work(session);
+  } finally {
+    const current = await browser.session(session.id);
+    if (current && current.status !== 'ended') {
+      await browser.run(session.id, 'session.end');
+    }
+  }
+}
+
 export function launcher(command) {
   const result = spawnSync(process.execPath, ['scripts/playground.js', command], { encoding: 'utf8', stdio: 'inherit' });
   if (result.status !== 0) {

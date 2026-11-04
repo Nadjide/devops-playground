@@ -2,7 +2,7 @@
 // correlates its state with `docker inspect`. Requires a running Docker daemon.
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createBrowser, docker, launcher, ownedContainers } from './client.mjs';
+import { createBrowser, docker, endIfOpen, launcher, ownedContainers } from './client.mjs';
 
 const objective = (session, id) => session.mission.objectives.find((item) => item.id === id).status;
 
@@ -24,13 +24,14 @@ describe('local Docker missions', { timeout: 15 * 60_000 }, () => {
   it('completes M01 against a real container and cleans up only owned resources', async () => {
     const browser = await createBrowser().connect();
     const session = await browser.createSession('stopped-container');
+    try {
     const [container] = ownedContainers(session.id);
     assert.equal(container.state, 'exited');
     assert.match(docker('logs', container.id), /HTTP server closed, exiting with code 0/);
     assert.equal(docker('inspect', container.id, '--format', '{{.State.ExitCode}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Memory}} {{.HostConfig.PidsLimit}} {{.Config.User}}'),
       '0 true 268435456 128 node');
-    assert.equal(docker('inspect', container.id, '--format', '{{json .HostConfig.Binds}} {{.HostConfig.Privileged}} {{json .HostConfig.PortBindings}}'),
-      'null false {}');
+    assert.equal(docker('inspect', container.id, '--format', '{{json .HostConfig.Binds}} {{.HostConfig.Privileged}} {{len .HostConfig.PortBindings}}'),
+      'null false 0');
 
     // A foreign resource carrying our session label but another installation must survive.
     const foreign = docker('run', '-d', '--label', 'devops-playground.integration-fixture=foreign',
@@ -76,11 +77,15 @@ describe('local Docker missions', { timeout: 15 * 60_000 }, () => {
     assert.deepEqual(remaining.map((item) => item.installation), ['foreign-install']);
     assert.equal(docker('network', 'ls', '--filter', `label=devops-playground.session=${session.id}`, '-q'), '');
     docker('rm', '-f', foreign);
+    } finally {
+      await endIfOpen(browser, session.id);
+    }
   });
 
   it('completes M02 by replacing the workload with the approved port', async () => {
     const browser = await createBrowser().connect();
     const session = await browser.createSession('wrong-port');
+    try {
     const [before] = ownedContainers(session.id);
     assert.equal(before.state, 'running');
     assert.match(docker('inspect', before.id, '--format', '{{json .Config.Env}}'), /APP_PORT=3001/);
@@ -105,5 +110,8 @@ describe('local Docker missions', { timeout: 15 * 60_000 }, () => {
 
     assert.equal((await browser.run(session.id, 'session.end')).status, 'succeeded');
     assert.deepEqual(ownedContainers(session.id), []);
+    } finally {
+      await endIfOpen(browser, session.id);
+    }
   });
 });
