@@ -21,6 +21,21 @@ local mode is meant for a trusted owner operating their own Docker installation.
 | --- | --- | --- |
 | GET | `/v1/health` | Runner process health |
 | GET | `/v1/docker` | Daemon version and API diagnostics, or a typed failure |
+| POST | `/v1/sessions/:id/setup` | Build or reuse the approved image, create the session network and workload (NDJSON) |
+| POST | `/v1/sessions/:id/execute` | Perform one validated operation and stream observations (NDJSON) |
+| POST | `/v1/sessions/:id/teardown` | Remove the session's owned containers and networks (NDJSON) |
+
+## Workloads
+
+The approved fixture lives in `labs/fixtures/api` and is built through the
+Engine API from an allowlisted context (Dockerfile, package.json, server.js,
+tests). Build arguments come only from the release catalog. Every container and
+network carries `devops-playground.managed`, `.installation`, `.session`,
+`.generation`, and `.lab` labels, which are re-verified on the inspected object
+before each mutation. Workloads run as a non-root user with a read-only root
+filesystem, CPU, memory, and process limits, no capabilities, no published
+ports, and an internal per-session network. Probes use the fixed service alias
+and the lab's expected port only.
 
 Daemon failures map to `DOCKER_UNAVAILABLE`, `DOCKER_PERMISSION_DENIED`,
 `DOCKER_CONTEXT_UNSUPPORTED` (Windows containers), or `DOCKER_ERROR`, with

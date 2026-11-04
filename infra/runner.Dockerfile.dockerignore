@@ -7,5 +7,6 @@ coverage
 test-results
 playwright-report
 **/tests
+!labs/fixtures/*/tests
 .env
 *.md

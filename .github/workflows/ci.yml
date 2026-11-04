@@ -90,6 +90,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Validate playground Compose configuration
         run: |
@@ -107,6 +111,24 @@ jobs:
 
       - name: Check Local mode boundaries
         run: node scripts/check-playground-stack.js local
+
+      - name: Run real local Docker mission integration
+        run: npm run test:integration:local
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run local Docker browser suite
+        run: npm run test:e2e:local
+
+      - name: Upload local browser evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-e2e-evidence
+          path: test-results
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Show playground logs on failure
         if: failure()

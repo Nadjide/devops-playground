@@ -20,6 +20,8 @@ COPY apps/runner/package.json apps/runner/
 # Express 5 is nested under the workspace because the root workload keeps Express 4.
 COPY --from=deps /app/apps/runner/node_modules apps/runner/node_modules
 COPY apps/runner/src apps/runner/src
+# The installation identity volume inherits this ownership on first mount.
+RUN mkdir -p /var/lib/devops-playground && chown node:node /var/lib/devops-playground
 USER node
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:4000/v1/health', { headers: { authorization: 'Bearer ' + process.env.RUNNER_TOKEN } }).then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]

@@ -14,9 +14,16 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`DevOps Playground control (${config.mode} mode) listening on ${config.host}:${config.port}`);
 });
 
+let stopping = false;
 for (const signal of ['SIGTERM', 'SIGINT']) {
-  process.on(signal, () => {
+  process.on(signal, async () => {
+    if (stopping) {
+      return;
+    }
+    stopping = true;
+    server.close();
+    await store.shutdown();
     store.dispose();
-    server.close(() => process.exit(0));
+    process.exit(0);
   });
 }

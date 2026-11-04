@@ -93,6 +93,10 @@ export function createApiRouter({ config, store, runner, operations }) {
     res.status(201).json({ session });
   });
 
+  router.get('/sessions', (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ sessions: config.mode === 'local' ? store.listOwned(req.browserSession) : [] });
+  });
+
   router.get('/sessions/:id', (req, res) => {
     res.set('Cache-Control', 'no-store').json({ session: ownedRuntime(req).getSession() });
   });

@@ -48,6 +48,12 @@ function help() {
 
 function probeFailure(session, operation) {
   const probe = session.probes.find((item) => item.operationId === operation.id);
+  if (probe?.error?.includes('ENOTFOUND') || probe?.error?.includes('EAI_AGAIN')) {
+    return `curl: (6) Could not resolve host: ${probe.serviceId}`;
+  }
+  if (probe?.error?.includes('is not running')) {
+    return `curl: (7) Failed to connect to ${probe.serviceId} port ${probe.port}: Couldn't connect to server`;
+  }
   if (probe?.error?.includes('ECONNREFUSED')) {
     return `curl: (7) Failed to connect to ${probe.serviceId} port ${probe.port}: Connection refused`;
   }
