@@ -3,11 +3,21 @@
   "version": "1.0.0",
   "description": "Minimal DevOps showcase API built with Node.js, Express, Docker, Docker Compose and GitHub Actions.",
   "main": "src/server.js",
+  "private": true,
+  "workspaces": [
+    "packages/lab-core"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "jest",
-    "test:ci": "jest --ci --runInBand"
+    "test:ci": "jest --ci --runInBand",
+    "lint": "eslint . --max-warnings 0",
+    "test:core": "npm run test --workspace @devops-playground/lab-core",
+    "test:playground": "npm run test:core"
   },
   "keywords": [
     "devops",
@@ -22,7 +32,14 @@
     "express": "^4.19.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.0.0",
     "jest": "^29.7.0",
     "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testMatch": [
+      "<rootDir>/tests/*.test.js"
+    ]
   }
 }
