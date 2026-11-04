@@ -1604,7 +1604,7 @@ button.stage[aria-pressed="true"] {
 }
 
 .cloud-form .cloud-input-wide {
-  width: 26ch;
+  width: 40ch;
 }
 
 .cloud-write textarea {
@@ -1680,4 +1680,36 @@ button.stage[aria-pressed="true"] {
   max-height: 220px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.provider-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.provider-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.provider-option:hover {
+  border-color: var(--accent);
+}
+
+.provider-option-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  cursor: default;
 }
