@@ -51,12 +51,15 @@ describe('workbench shell', () => {
     expect(screen.getByRole('list', { name: 'Orchestration events' })).toHaveTextContent('session.status-changed');
   });
 
-  it('keeps unavailable container actions focusable and explained', async () => {
+  it('keeps unavailable actions focusable and explained', async () => {
     await renderApp();
     const start = screen.getByRole('button', { name: 'Start api' });
-    expect(start).toHaveAttribute('aria-disabled', 'true');
-    expect(start).toHaveAttribute('data-tooltip', 'Start api (unavailable in this session)');
+    expect(start).not.toHaveAttribute('aria-disabled');
     expect(screen.getByText('stopped')).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Pipeline' }));
+    const run = screen.getByRole('button', { name: 'Run pipeline' });
+    expect(run).toHaveAttribute('aria-disabled', 'true');
+    expect(run).toHaveAttribute('data-tooltip', 'Pipeline runs are unavailable in this session');
   });
 
   it('moves focus into the session menu and restores it on Escape', async () => {
@@ -66,7 +69,7 @@ describe('workbench shell', () => {
     await user.click(trigger);
     const menu = screen.getByRole('menu', { name: 'Session actions' });
     expect(within(menu).getAllByRole('menuitem')[0]).toHaveFocus();
-    expect(within(menu).getByRole('menuitem', { name: /Reset session/ })).toHaveAttribute('aria-disabled', 'true');
+    expect(within(menu).getByRole('menuitem', { name: /Reset session/ })).not.toHaveAttribute('aria-disabled');
     await user.keyboard('{ArrowDown}');
     expect(within(menu).getByRole('menuitem', { name: /End session/ })).toHaveFocus();
     await user.keyboard('{Escape}');

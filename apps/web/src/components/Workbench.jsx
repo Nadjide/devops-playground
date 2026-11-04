@@ -3,6 +3,7 @@ import { Group, Panel, Separator } from 'react-resizable-panels';
 import { AlertTriangle, ChevronDown, ChevronUp, LoaderCircle } from 'lucide-react';
 import { getLabManifest } from '@devops-playground/lab-core';
 import { useSessionClient, useSessionState } from '../session/SessionContext.jsx';
+import { useSessionActions } from '../session/SessionActions.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { compactOrder, desktopGroups, missionTab, panels } from '../panels/registry.js';
 import { PanelFrame } from '../panels/PanelFrame.jsx';
@@ -184,5 +185,48 @@ export function Workbench() {
     );
   }
 
-  return isDesktop ? <DesktopWorkbench /> : <CompactWorkbench />;
+  return (
+    <>
+      <SessionBanner />
+      {isDesktop ? <DesktopWorkbench /> : <CompactWorkbench />}
+    </>
+  );
+}
+
+function SessionBanner() {
+  const client = useSessionClient();
+  const { session } = useSessionState();
+  const { requestLifecycle } = useSessionActions();
+  if (session.status === 'ended') {
+    return (
+      <div className="banner banner-neutral" role="status">
+        <span>This session has ended and its resources were removed.</span>
+        <button type="button" className="button" onClick={() => client.retry()}>Start a new session</button>
+      </div>
+    );
+  }
+  if (session.status === 'resetting' || session.status === 'ending') {
+    return (
+      <div className="banner banner-warning" role="status">
+        <LoaderCircle aria-hidden="true" size={14} className="spin" />
+        <span>{session.status === 'resetting' ? 'Resetting the session…' : 'Ending the session…'}</span>
+      </div>
+    );
+  }
+  if (session.status === 'degraded') {
+    return (
+      <div className="banner banner-danger" role="alert">
+        <AlertTriangle aria-hidden="true" size={14} />
+        <span>The session is degraded after a failed lifecycle operation.</span>
+        <button
+          type="button"
+          className="button"
+          onClick={(event) => requestLifecycle('session.reset', { returnFocus: event.currentTarget })}
+        >
+          Retry reset
+        </button>
+      </div>
+    );
+  }
+  return null;
 }

@@ -5,6 +5,7 @@ import {
 } from './shared.js';
 import { operationSchema } from './operations.js';
 import { missionProgressSchema } from './missions.js';
+import { LIMITS, logBufferSchema, probeRecordSchema } from './observations.js';
 
 export const containerObservationSchema = z.strictObject({
   state: z.enum(['created', 'starting', 'running', 'stopped', 'exited', 'removing', 'removed', 'unknown']),
@@ -47,6 +48,8 @@ export const sessionSchema = z.strictObject({
   resources: z.array(resourceSchema).max(3),
   operations: z.array(operationSchema).max(111),
   mission: missionProgressSchema,
+  probes: z.array(probeRecordSchema).max(LIMITS.probeHistory),
+  logs: logBufferSchema,
   lastEventSequence: revisionSchema,
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
@@ -81,6 +84,11 @@ export const sessionSchema = z.strictObject({
     if (objective.evidence && (objective.evidence.generation !== session.generation ||
         objective.evidence.revision > session.revision)) {
       context.addIssue({ code: 'custom', message: 'Objective evidence belongs to another generation or revision.' });
+    }
+  }
+  for (const probe of session.probes) {
+    if (probe.generation !== session.generation || probe.revision > session.revision) {
+      context.addIssue({ code: 'custom', message: 'Probe evidence belongs to another generation or revision.' });
     }
   }
   if (session.mode === 'demo' && session.resources.some((resource) => resource.observed.source !== 'simulator')) {

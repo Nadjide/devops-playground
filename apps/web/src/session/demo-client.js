@@ -1,85 +1,102 @@
-import { createLabSession, labCatalog, reduceSession } from '@devops-playground/lab-core';
+import {
+  createLabRuntime, createSimulatorExecutor, createSystemClock, labCatalog,
+} from '@devops-playground/lab-core';
 import { createStore } from './store.js';
-import { ClientError, toClientError } from './errors.js';
+import { toClientError } from './errors.js';
 
-const EVENT_HISTORY_LIMIT = 1000;
-const defaultNow = () => new Date().toISOString();
+const NOTICE_LIMIT = 5;
 const defaultNextId = () => globalThis.crypto.randomUUID();
 
-export const DEMO_CAPABILITIES = Object.freeze({
-  mode: 'demo',
-  source: 'simulator',
-  backend: 'Browser simulator',
-  operations: Object.freeze([]),
-});
-
-function activationEvent(session, occurredAt) {
-  const sequence = session.lastEventSequence + 1;
-  return {
-    schemaVersion: 1,
-    id: `${session.id}:${session.eventEpoch}:${sequence}`,
-    sessionId: session.id,
-    generation: session.generation,
-    eventEpoch: session.eventEpoch,
-    sequence,
-    revision: session.revision + 1,
-    type: 'session.status-changed',
-    occurredAt,
-    operationId: null,
-    source: 'simulator',
-    payload: { status: 'active' },
-  };
-}
-
 /**
- * Browser-only session client. It owns the complete demo session and never
- * performs network requests.
+ * Browser-only session client. It owns the complete demo session through the
+ * shared lab runtime and the deterministic simulator; it never uses the network.
  */
-export function createDemoClient({ labId = labCatalog[0].id, now = defaultNow, nextId = defaultNextId } = {}) {
+export function createDemoClient({
+  labId = labCatalog[0].id,
+  clock = createSystemClock(),
+  nextId = defaultNextId,
+  executor = createSimulatorExecutor(),
+  onError = (error) => globalThis.console?.error(error),
+} = {}) {
   const store = createStore({
     status: 'loading',
     connection: 'connecting',
     session: null,
     events: [],
+    notices: [],
     error: null,
   });
+  let runtime = null;
+  let unsubscribe = null;
   let disposed = false;
+  let noticeCounter = 0;
 
-  function initialize() {
-    store.set({ status: 'loading', connection: 'connecting', error: null });
-    return Promise.resolve().then(() => {
-      const created = createLabSession({ labId, mode: 'demo', now, nextId });
-      const event = activationEvent(created, now());
-      const session = reduceSession(created, event);
+  function sync() {
+    if (!disposed && runtime) {
+      store.set({ session: runtime.getSession(), events: runtime.getEvents() });
+    }
+  }
+
+  async function initialize() {
+    unsubscribe?.();
+    runtime?.dispose();
+    store.set({ status: 'loading', connection: 'connecting', session: null, events: [], notices: [], error: null });
+    try {
+      runtime = createLabRuntime({ labId, mode: 'demo', executor, clock, nextId, onError });
+      unsubscribe = runtime.subscribe(sync);
+      await runtime.start();
       if (!disposed) {
-        store.set({ status: 'ready', connection: 'ready', session, events: [event].slice(-EVENT_HISTORY_LIMIT) });
+        store.set({ status: 'ready', connection: 'ready', session: runtime.getSession(), events: runtime.getEvents() });
       }
-    }).catch((error) => {
+    } catch (error) {
       if (!disposed) {
         store.set({ status: 'error', connection: 'disconnected', error: toClientError(error) });
       }
-    });
+    }
+  }
+
+  function notice(type, error) {
+    noticeCounter += 1;
+    const entry = { id: `notice-${noticeCounter}`, type, code: error.code, message: error.message, at: new Date(clock.now()).toISOString() };
+    store.set({ notices: [...store.get().notices, entry].slice(-NOTICE_LIMIT) });
   }
 
   const ready = initialize();
 
   return {
     mode: 'demo',
-    capabilities: DEMO_CAPABILITIES,
+    capabilities: {
+      mode: 'demo',
+      source: 'simulator',
+      backend: executor.backend ?? 'Browser simulator',
+    },
     ready,
     getSnapshot: store.get,
     subscribe: store.subscribe,
     listenerCount: store.listenerCount,
     retry: initialize,
     isAvailable(operationType) {
-      return DEMO_CAPABILITIES.operations.includes(operationType);
+      return Boolean(runtime?.capabilities().includes(operationType));
     },
-    async dispatch(request) {
-      throw new ClientError('CAPABILITY_UNAVAILABLE',
-        `The ${request?.type ?? 'requested'} operation is not available in this session.`);
+    getOperation: (operationId) => runtime?.getOperation(operationId) ?? null,
+    settled: (operationId) => runtime.settled(operationId),
+    /** Request a typed operation. Rejections are typed ClientErrors and recorded as notices. */
+    async dispatch(request, { idempotencyKey = `ui-${nextId()}` } = {}) {
+      try {
+        if (!runtime) {
+          throw toClientError({ code: 'SESSION_UNAVAILABLE', message: 'The session is not ready.' });
+        }
+        return runtime.submit(request, { idempotencyKey });
+      } catch (error) {
+        const clientError = toClientError(error);
+        notice(request?.type ?? 'unknown', clientError);
+        throw clientError;
+      }
     },
     dispose() {
       disposed = true;
+      unsubscribe?.();
+      runtime?.dispose();
     },
   };
 }

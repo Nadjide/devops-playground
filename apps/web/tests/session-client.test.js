@@ -12,9 +12,8 @@ describe('demo session client', () => {
     const state = client.getSnapshot();
     expect(state.status).toBe('ready');
     expect(sessionSchema.parse(state.session)).toEqual(state.session);
-    expect(state.session).toMatchObject({ mode: 'demo', status: 'active', revision: 1, labId: 'stopped-container' });
-    expect(state.events).toHaveLength(1);
-    expect(state.events[0]).toMatchObject({ type: 'session.status-changed', source: 'simulator' });
+    expect(state.session).toMatchObject({ mode: 'demo', status: 'active', labId: 'stopped-container' });
+    expect(state.events.map((event) => event.type)).toEqual(['session.status-changed', 'log.appended']);
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
@@ -32,12 +31,27 @@ describe('demo session client', () => {
     expect(client.listenerCount()).toBe(0);
   });
 
-  it('reports operations as unavailable capabilities', async () => {
+  it('dispatches simulated operations through the shared runtime', async () => {
     const client = createTestClient();
     await client.ready;
-    expect(client.isAvailable('container.start')).toBe(false);
-    await expect(client.dispatch({ type: 'container.start', generation: 1, parameters: { serviceId: 'api' } }))
-      .rejects.toMatchObject({ code: 'CAPABILITY_UNAVAILABLE' });
+    expect(client.isAvailable('container.start')).toBe(true);
+    expect(client.isAvailable('service.configure')).toBe(false);
+    const operation = await client.dispatch({ type: 'container.start', generation: 1, parameters: { serviceId: 'api' } });
+    expect(operation.status).toBe('queued');
+    const settled = client.settled(operation.id);
+    await client.clock.runAll();
+    expect(await settled).toMatchObject({ status: 'succeeded' });
+    expect(client.getSnapshot().session.resources[0].observed.state).toBe('running');
+  });
+
+  it('rejects invalid requests with typed errors and records a notice', async () => {
+    const client = createTestClient();
+    await client.ready;
+    await expect(client.dispatch({ type: 'container.start', generation: 1, parameters: { serviceId: 'db' } }))
+      .rejects.toMatchObject({ code: 'UNKNOWN_SERVICE', status: 404 });
+    await expect(client.dispatch({ type: 'container.exec', generation: 1, parameters: {} }))
+      .rejects.toMatchObject({ code: 'INVALID_OPERATION', status: 400 });
+    expect(client.getSnapshot().notices.map((notice) => notice.code)).toEqual(['UNKNOWN_SERVICE', 'INVALID_OPERATION']);
   });
 
   it('exposes an error state when the session cannot be created', async () => {
