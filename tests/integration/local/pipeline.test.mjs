@@ -79,7 +79,7 @@ describe('local Docker pipeline', { timeout: 20 * 60_000 }, () => {
   it('cancels during tests without touching the service and refuses duplicate runs', async () => {
     const browser = await createBrowser().connect();
     await withSession(browser, 'free-exploration', async (session) => {
-      const [before] = ownedContainers(session.id);
+      const [before] = ownedContainers(session.id, { role: 'workload' });
       const body = { type: 'pipeline.run', generation: 1, parameters: { releaseId: 'api-1-0-1' } };
       assert.equal((await browser.request('POST', `/api/sessions/${session.id}/operations`, { body, key: 'run-cancel-1' })).status, 202);
       const duplicate = await browser.request('POST', `/api/sessions/${session.id}/operations`, { body, key: 'run-cancel-2' });
@@ -98,7 +98,7 @@ describe('local Docker pipeline', { timeout: 20 * 60_000 }, () => {
       const state = await browser.session(session.id);
       assert.equal(latest(state).status, 'cancelled');
       assert.equal(latest(state).stages.find((stage) => stage.id === 'deploy').status, 'skipped');
-      const [after] = ownedContainers(session.id);
+      const [after] = ownedContainers(session.id, { role: 'workload' });
       assert.equal(after.id, before.id);
       assert.equal(docker('inspect', after.id, '--format', '{{.Config.Image}} {{.State.Running}}'), 'devops-playground-lab/api:1.0.0 true');
       for (let attempt = 0; attempt < 40 && testContainers(); attempt += 1) {
