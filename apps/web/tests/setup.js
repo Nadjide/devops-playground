@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { xtermInstances } from './xterm-fake.js';
+
+vi.mock('@xterm/xterm', async () => ({ Terminal: (await import('./xterm-fake.js')).FakeTerminal }));
+vi.mock('@xterm/addon-fit', async () => ({ FitAddon: (await import('./xterm-fake.js')).FakeFitAddon }));
 
 let desktop = true;
 
@@ -15,6 +19,8 @@ Object.defineProperty(window, 'matchMedia', {
     media: query,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
   })),
 });
 
@@ -29,4 +35,5 @@ globalThis.ResizeObserver ??= ResizeObserverStub;
 afterEach(() => {
   cleanup();
   desktop = true;
+  xtermInstances.length = 0;
 });

@@ -4,6 +4,7 @@ import { LIMITS } from '../schemas/observations.js';
 import { getLabManifest } from '../missions/catalog.js';
 import { createSession, freshMission, reduceSession, SessionStateError } from './session.js';
 import { createSystemClock, delay } from './clock.js';
+import { sanitizeLogMessage } from '../commands/sanitize.js';
 import { AbortedError, DomainError, OperationFailure } from './errors.js';
 
 export const RUNTIME_LIMITS = Object.freeze({
@@ -103,7 +104,9 @@ export function createLabRuntime({
     return event;
   }
 
-  function emitLogs(lines, options) {
+  function emitLogs(input, options) {
+    // Every driver's log text crosses this boundary, so sanitize it once here.
+    const lines = input.map((line) => ({ ...line, message: sanitizeLogMessage(line.message) }));
     for (let index = 0; index < lines.length; index += LIMITS.logBatch) {
       emit('log.appended', { entries: lines.slice(index, index + LIMITS.logBatch) }, options);
     }

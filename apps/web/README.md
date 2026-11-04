@@ -44,6 +44,25 @@ truth.
 Unsupported operations reject with `CAPABILITY_UNAVAILABLE` and the UI renders
 them as unavailable controls with an explanation.
 
+## Terminal and Logs
+
+The Terminal panel is an xterm view over the workbench command grammar defined
+in `lab-core` (`parseCommand`). It is not a shell: commands such as
+`docker start api` or `curl http://api:3000/health` become the same typed
+operations the buttons dispatch. Shell operators, substitutions, redirects,
+globs, environment assignments, unknown flags, arbitrary URLs, unapproved
+ports, multiline input, and inputs over 512 characters are rejected with
+guidance. `lab reset` opens the same confirmation dialog as the session menu.
+History keeps the last 100 commands; `clear` only clears the view. xterm is
+loaded lazily in its own chunk.
+
+The Logs panel reads the selected service's logs when it opens (that read is
+the diagnostic evidence), supports pausing autoscroll and clearing the visible
+view without deleting domain logs, and shows a truncation notice when the
+500-entry / 256 KiB retention bound discards older lines. Log text is sanitized
+at ingestion and always rendered as text. The Events panel lists orchestration
+events separately from workload logs.
+
 ## Layout
 
 At widths of 1024 px and above the workbench uses a mission sidebar, two

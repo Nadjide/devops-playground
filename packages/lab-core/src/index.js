@@ -17,4 +17,8 @@ export {
   fixtureCatalog, getFixture, createFixtureResources, createFixtureHistory,
 } from './fixtures/catalog.js';
 export { API_IMAGE, SERVICE_NAME, getRelease, releaseCatalog, workloadLines } from './fixtures/releases.js';
+export { sanitizeLogMessage, sanitizeTerminalText } from './commands/sanitize.js';
+export {
+  COMMAND_HELP, commandContext, MAX_COMMAND_LENGTH, parseCommand, TAIL_LIMITS,
+} from './commands/parser.js';
 export { createSimulatorExecutor, SIMULATED_OPERATIONS, SIMULATED_TIMINGS } from './simulator/executor.js';
