@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phases A and B merged; L14 merged; L15 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phases A and B merged; L14 and L15 merged; L16 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2758,8 +2758,8 @@ The ledger below describes the current verified execution state.
 | L12 | merged | feat/lot-12-end-to-end-verification | [PR #12](https://github.com/Nadjide/devops-playground/pull/12) | Complete demo and local browser matrix, local security regression suite, CI summaries; [CI run 41901649495](https://github.com/Nadjide/devops-playground/actions/runs/41901649495); squash commit `e4eaca2` |
 | L13 | merged | feat/lot-13-core-release-readiness | [PR #13](https://github.com/Nadjide/devops-playground/pull/13) | README, screenshots, `verify:playground` acceptance report from a clean clone, secret scan, per-session terminal transcript; [CI run 41906515871](https://github.com/Nadjide/devops-playground/actions/runs/41906515871); squash commit `769f3ad` |
 | L14 | merged | feat/lot-14-simulated-s3-lab | [PR #14](https://github.com/Nadjide/devops-playground/pull/14) | Storage contract, session schema 2 and checkpoint migration, simulated S3, M04 and M05 for S3, Cloud panel, `aws s3` terminal subset; [CI run 41909130356](https://github.com/Nadjide/devops-playground/actions/runs/41909130356); squash commit `d3e1d3d` |
-| L15 | pr-open | feat/lot-15-simulated-azure-lab | Pending | Simulated Azure Blob provider, Azure M04 and M05, provider variants and confirmed switching, `az storage` terminal subset |
-| L16 | planned | Pending | Pending | Pending |
+| L15 | merged | feat/lot-15-simulated-azure-lab | [PR #15](https://github.com/Nadjide/devops-playground/pull/15) | Simulated Azure Blob provider, Azure M04 and M05, provider variants and confirmed switching, `az storage` terminal subset; [CI run 41911155862](https://github.com/Nadjide/devops-playground/actions/runs/41911155862); squash commit `2f27fed` |
+| L16 | pr-open | feat/lot-16-local-s3-lab | Pending | Pinned session-owned Moto 5.2.5, AWS SDK adapter with explicit endpoint and test credentials, dependency-free storage workload, local S3 M04 and M05, `test:integration:cloud`, Cloud emulators CI job |
 | L17 | planned | Pending | Pending | Pending |
 
 ### 26.3 Verification Record Format
@@ -3177,6 +3177,28 @@ offers the other provider of the same mission only through the confirmed
 "start a new session" path, so resources, objective evidence, and checkpoints
 never cross providers; restoring an S3 checkpoint into the Azure variant is
 refused with `CHECKPOINT_MISMATCH`.
+
+### 26.19 L16 Local S3 Emulator Verification
+
+Verified on 2026-11-04 on Windows with Docker Desktop Engine 29.7.2 against a
+session-owned `motoserver/moto:5.2.5` pinned by digest
+`sha256:59a1965d845249b04def37a0e2565f9cc6c44543cb89b68e90f28f344b3b0d1a`
+(server mode, released 2026-10-27) and `@aws-sdk/client-s3` 3.1159.0.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint`, `npm run scan:secrets` | Passed (197 tracked files) |
+| `npm run test:playground` | Core 285, workbench 55, control 30, runner 39 passed; runner tests cover endpoint refusal before any client exists, ambient `AWS_*` variables and profiles ignored, error translation, emulator hardening, pull failures, ownership, and storage-check contract validation |
+| Storage fixture `npm test` | 4 passed: signed S3 round trip, provider error on a missing bucket, health without storage, deterministic signatures |
+| `npm run test:integration:cloud` | 6 passed: core labs never start the emulator; M04 with Moto and the workload's own round trip; external endpoints, foreign buckets, and oversized bodies refused before any change; M05 by replacing the real workload; emulator outage reported as retryable with the session kept and a restarted Moto re-observed as empty, then reset; ending the session removes the emulator and network |
+| `node scripts/e2e-local.js tests/e2e/local/storage.spec.mjs` | 1 passed: the S3 provisioning mission in the browser against Moto, with Moto, emulator, and probe labels, and no emulator left after ending the session |
+
+Moto answers a repeated CreateBucket for an owned bucket with success in
+`us-east-1`, as legacy S3 does, so the runner checks existence first and keeps
+the `BucketAlreadyOwnedByYou` error that the simulator reports. Anonymous reads
+are refused by Moto, so the workload signs its requests with Signature Version 4.
+Controller restart recovery re-observes storage from the emulator; it is
+exercised with Azure Blob in L17.
 
 ## 27. Decisions and Scope Change Control
 
