@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phase A merged; L11 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phase A merged; L12 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2750,8 +2750,8 @@ The ledger below describes the current verified execution state.
 | L08 | merged | feat/lot-08-local-runner-foundations | [PR #8](https://github.com/Nadjide/devops-playground/pull/8) | 23 control, 13 runner tests, packaged stack checks on Docker Desktop and GitHub Actions; [CI run 41854698422](https://github.com/Nadjide/devops-playground/actions/runs/41854698422); squash commit `333f390` |
 | L09 | merged | feat/lot-09-local-docker-runtime | [PR #9](https://github.com/Nadjide/devops-playground/pull/9) | M01 and M02 against real Docker in integration and browser suites on Docker Desktop and GitHub Actions; [CI run 41859730546](https://github.com/Nadjide/devops-playground/actions/runs/41859730546); squash commit `6cdf3c9` |
 | L10 | merged | feat/lot-10-local-pipeline | [PR #10](https://github.com/Nadjide/devops-playground/pull/10) | Real local pipeline, M03 rollback, cancellation, browser flows on Docker Desktop and GitHub Actions; [CI run 41863336266](https://github.com/Nadjide/devops-playground/actions/runs/41863336266); squash commit `b0c02df` |
-| L11 | pr-open | feat/lot-11-local-recovery | Pending | Controller crash recovery and cleanup, runner interruption, concurrent reset, scoped launcher cleanup, 10-cycle stress on real Docker |
-| L12 | planned | Pending | Pending | Pending |
+| L11 | merged | feat/lot-11-local-recovery | [PR #11](https://github.com/Nadjide/devops-playground/pull/11) | Controller crash recovery and cleanup, runner interruption, concurrent reset, scoped launcher cleanup, 10-cycle stress on real Docker; [CI run 41899879671](https://github.com/Nadjide/devops-playground/actions/runs/41899879671); squash commit `d80cae8` |
+| L12 | pr-open | feat/lot-12-end-to-end-verification | Pending | Complete demo and local browser matrix, local security regression suite, CI summaries |
 | L13 | planned | Pending | Pending | Pending |
 | L14 | planned | Pending | Pending | Pending |
 | L15 | planned | Pending | Pending | Pending |
@@ -3030,6 +3030,27 @@ Recovery trusts only label-verified resources and never restores previous
 objective evidence or run history. The launcher reads the installation identity
 from its volume to scope `playground:cleanup`, detaches endpoints such as the
 runner before removing lab networks, and never uses global pruning.
+
+### 26.15 L12 Verification Matrix
+
+Verified on 2026-11-04 on Windows with Docker Desktop Engine 29.7.2.
+[tests/README.md](tests/README.md) lists every suite with its execution mode.
+
+| Mode | Missions through the UI | Terminal path | Failure and edge states | Viewports |
+| --- | --- | --- | --- | --- |
+| Demo (simulated) | M01, M02, M03 | M01 and M03 | Unavailable capabilities, failed probes, stale observations, corrupt/oversized/incompatible storage, quota denial, reload during work | 1440, 1024, 768, 390, 320 px |
+| Local Docker (real) | M01, M02, M03 | Phone terminal start and probe | Runner stopped mid-session, controller crash recovery and cleanup, concurrent reset, reload reattachment | 1440 px and 390 px |
+
+| Suite | Result |
+| --- | --- |
+| `npm run test:e2e:demo` | 24 passed |
+| `npm run test:integration:local` | Missions, pipeline, recovery, and security suites passed (security: forged Host, foreign Origin, cross-site, missing CSRF, cross-browser 404s, seven injection-shaped operations, 413, runner token absent from responses and logs) |
+| `npm run test:e2e:local` | 5 passed |
+
+CI writes a job summary that separates simulated browser results from real
+Docker results. The original Docker job now waits on the Compose healthcheck
+with a bounded deadline instead of a fixed sleep. Local browser tests share one
+browser identity so a failing test cannot cascade through the one-session limit.
 
 ## 27. Decisions and Scope Change Control
 

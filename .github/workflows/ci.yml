@@ -64,7 +64,19 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run simulated demo browser tests
+        id: demo
         run: npm run test:e2e:demo
+
+      - name: Summarize simulated suite
+        if: always()
+        run: |
+          {
+            echo '### Simulated browser demo'
+            echo ''
+            echo '| Suite | Execution | Result |'
+            echo '| --- | --- | --- |'
+            echo '| test:e2e:demo (Playwright, 5 viewports, M01-M03, persistence, keyboard) | Browser simulator; static build; backend traffic blocked | ${{ steps.demo.outcome }} |'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload browser evidence
         if: always()
@@ -104,21 +116,25 @@ jobs:
         run: npm run playground:demo
 
       - name: Check Demo mode boundaries
+        id: demo_stack
         run: node scripts/check-playground-stack.js demo
 
       - name: Start packaged Local mode with the real Docker daemon
         run: npm run playground:local
 
       - name: Check Local mode boundaries
+        id: local_stack
         run: node scripts/check-playground-stack.js local
 
-      - name: Run real local Docker mission integration
+      - name: Run real local Docker integration (missions, pipeline, recovery, security)
+        id: integration
         run: npm run test:integration:local
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Run local Docker browser suite
+        id: local_e2e
         run: npm run test:e2e:local
 
       - name: Upload local browser evidence
@@ -129,6 +145,20 @@ jobs:
           path: test-results
           retention-days: 14
           if-no-files-found: ignore
+
+      - name: Summarize real Docker suites
+        if: always()
+        run: |
+          {
+            echo '### Packaged playground on the runner Docker daemon'
+            echo ''
+            echo '| Suite | Execution | Result |'
+            echo '| --- | --- | --- |'
+            echo '| check-playground-stack demo | Packaged portal, no runner, no socket | ${{ steps.demo_stack.outcome }} |'
+            echo '| check-playground-stack local | Portal and runner, real Docker daemon | ${{ steps.local_stack.outcome }} |'
+            echo '| test:integration:local | Real containers, builds, probes, recovery, security | ${{ steps.integration.outcome }} |'
+            echo '| test:e2e:local | Browser against real Docker (M01-M03, runner outage, phone) | ${{ steps.local_e2e.outcome }} |'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show playground logs on failure
         if: failure()
@@ -153,11 +183,8 @@ jobs:
       - name: Build Docker image
         run: docker build -t devops-playground .
 
-      - name: Start Docker Compose stack
-        run: docker compose up -d --build
-
-      - name: Wait for API startup
-        run: sleep 10
+      - name: Start Docker Compose stack and wait for its healthcheck
+        run: docker compose up -d --build --wait --wait-timeout 60
 
       - name: Check API health endpoint
         run: curl --fail --silent --show-error http://localhost:3000/health

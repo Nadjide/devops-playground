@@ -31,7 +31,7 @@
     "playground:local": "node scripts/playground.js local",
     "playground:status": "node scripts/playground.js status",
     "playground:down": "node scripts/playground.js down",
-    "test:integration:local": "node --test --test-concurrency=1 tests/integration/local/missions.test.mjs tests/integration/local/pipeline.test.mjs tests/integration/local/recovery.test.mjs",
+    "test:integration:local": "node --test --test-concurrency=1 tests/integration/local/missions.test.mjs tests/integration/local/pipeline.test.mjs tests/integration/local/recovery.test.mjs tests/integration/local/security.test.mjs",
     "test:e2e:local": "node scripts/e2e-local.js",
     "playground:cleanup": "node scripts/playground.js cleanup"
   },
