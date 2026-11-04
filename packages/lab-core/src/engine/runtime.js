@@ -487,7 +487,11 @@ export function createLabRuntime({
     mode,
     backend: executor.backend ?? 'Execution backend',
     capabilities: () => [...supported],
-    async start({ restore = null } = {}) {
+    async start({
+      restore = null,
+      restoreMessage = 'Session restored from a browser checkpoint; interrupted work was cancelled.',
+      restoreLogs = [],
+    } = {}) {
       if (restore) {
         const hydrated = hydrateSession(restore, { now: new Date(clock.now()).toISOString() });
         if (hydrated.labId !== lab.id || hydrated.fixtureId !== fixtureId || hydrated.mode !== mode) {
@@ -496,11 +500,11 @@ export function createLabRuntime({
         session = hydrated;
         await executor.restore?.({ session: clone(session) });
         if (['active', 'degraded'].includes(session.status)) {
+          if (restoreLogs.length) {
+            emitLogs(restoreLogs);
+          }
           // Recording the restore re-evaluates state-based objectives against the hydrated snapshot.
-          emitLogs([{
-            serviceId: null, stream: 'system', level: 'info', at: timestamp(),
-            message: 'Session restored from a browser checkpoint; interrupted work was cancelled.',
-          }]);
+          emitLogs([{ serviceId: null, stream: 'system', level: 'info', at: timestamp(), message: restoreMessage }]);
         }
         return clone(session);
       }

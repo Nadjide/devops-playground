@@ -160,6 +160,9 @@ export function createLocalClient({
       const existing = sessions.find((session) => session.status !== 'ended');
       if (existing) {
         attach(existing);
+      } else if (capabilities.recoverable?.length) {
+        // Resources from before a controller restart: the owner chooses recover or clean up.
+        store.set({ status: 'recovery', connection: 'ready', recoverable: capabilities.recoverable });
       } else {
         await createSession(selection.labId ?? labs[0].id, selection.fixtureId);
       }
@@ -226,6 +229,33 @@ export function createLocalClient({
       } catch (error) {
         store.set({ status: 'error', connection: 'disconnected', error: toClientError(error) });
       }
+    },
+    async recover(sessionId) {
+      store.set({ status: 'loading', loadingMessage: 'Re-observing the session resources…' });
+      try {
+        const { session } = await api('POST', `/api/recovery/${sessionId}`, { body: { action: 'recover' } });
+        attach(session);
+      } catch (error) {
+        store.set({ status: 'error', connection: 'disconnected', error: toClientError(error) });
+      }
+    },
+    async cleanupRecoverable(sessionId) {
+      store.set({ status: 'loading', loadingMessage: 'Removing the owned resources of that session…' });
+      try {
+        const { cleanup } = await api('POST', `/api/recovery/${sessionId}`, { body: { action: 'cleanup' } });
+        store.set({ lastCleanup: cleanup });
+        await initialize();
+      } catch (error) {
+        store.set({ status: 'error', connection: 'disconnected', error: toClientError(error) });
+      }
+    },
+    /** Real CPU and memory samples for the session workloads (Local Docker only). */
+    async metrics() {
+      const session = store.get().session;
+      if (!session || session.status !== 'active') {
+        return null;
+      }
+      return api('GET', `/api/sessions/${session.id}/metrics`);
     },
     discardSavedProgress() {},
     continueWithoutSaving() {},

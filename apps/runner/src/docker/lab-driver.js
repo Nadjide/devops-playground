@@ -52,13 +52,18 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
     return observationFrom(info, { appPort, stoppedByRequest });
   }
 
-  async function newLogs(container, serviceId) {
+  /**
+   * New log lines since the last read. After a runner restart the in-memory
+   * cursor is gone, so the controller's last ingested timestamp bounds the read.
+   */
+  async function newLogs(container, serviceId, fallbackAt = null) {
     const id = container.id;
-    const { lines, cursor } = await readContainerLogs(container, { serviceId, cursor: logCursors.get(id) ?? null, tail: WORKLOAD_LIMITS.logTail });
+    const known = logCursors.get(id) ?? null;
+    const { lines, cursor } = await readContainerLogs(container, { serviceId, cursor: known, tail: WORKLOAD_LIMITS.logTail });
     if (cursor) {
       logCursors.set(id, cursor);
     }
-    return lines;
+    return known || !fallbackAt ? lines : lines.filter((line) => line.at > fallbackAt);
   }
 
   async function joinNetwork(networkName) {
@@ -78,7 +83,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       name,
       Image: image,
       Env: [`APP_PORT=${appPort}`],
-      Labels: { ...ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId }), [LABELS.service]: service.serviceId, [LABELS.role]: 'workload' },
+      Labels: { ...ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId, fixtureId: session.fixtureId }), [LABELS.service]: service.serviceId, [LABELS.role]: 'workload' },
       User: 'node',
       StopTimeout: WORKLOAD_LIMITS.stopSeconds,
       HostConfig: {
@@ -143,7 +148,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       Name: network,
       Driver: 'bridge',
       Internal: true,
-      Labels: ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId }),
+      Labels: ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId, fixtureId: session.fixtureId }),
     });
     await joinNetwork(network);
 
@@ -172,7 +177,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
     const wasRunning = info.State.Running;
     if (wasRunning) {
       out.emit('resource.observed', { resourceId: resource.id, ...await stopAndObserve(container, resource.desired.appPort) });
-      out.logs(await newLogs(container, resource.serviceId));
+      out.logs(await newLogs(container, resource.serviceId, session.logCursors?.[resource.serviceId]));
     }
     await container.remove({ force: true });
     logCursors.delete(container.id);
@@ -206,7 +211,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
   async function deploy({ session, resource, image, out }) {
     const { replacement } = await replaceWorkload(session, resource, { image }, out);
     const observed = await startAndObserve(replacement, resource.desired.appPort);
-    out.logs(await newLogs(replacement, resource.serviceId));
+    out.logs(await newLogs(replacement, resource.serviceId, session.logCursors?.[resource.serviceId]));
     out.emit('resource.observed', { resourceId: resource.id, ...observed });
     return { container: replacement, observed };
   }
@@ -232,7 +237,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
         }
         out.emit('resource.observed', { resourceId: resource.id, state: 'starting', health: 'unknown', exitCode: null });
         const observed = await startAndObserve(container, resource.desired.appPort);
-        out.logs(await newLogs(container, resource.serviceId));
+        out.logs(await newLogs(container, resource.serviceId, session.logCursors?.[resource.serviceId]));
         out.emit('resource.observed', { resourceId: resource.id, ...observed });
         if (observed.state !== 'running') {
           throw new DriverFailure('CONTAINER_EXITED', `${resource.serviceId} exited with code ${observed.exitCode} during startup.`);
@@ -245,7 +250,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
           return { serviceId: resource.serviceId, state: observationFrom(info, { appPort: resource.desired.appPort }).state, changed: false };
         }
         const observed = await stopAndObserve(container, resource.desired.appPort);
-        out.logs(await newLogs(container, resource.serviceId));
+        out.logs(await newLogs(container, resource.serviceId, session.logCursors?.[resource.serviceId]));
         out.emit('resource.observed', { resourceId: resource.id, ...observed });
         return { serviceId: resource.serviceId, state: observed.state, exitCode: observed.exitCode, changed: true };
       }
@@ -254,7 +259,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
         const stopped = await stopAndObserve(container, resource.desired.appPort);
         out.emit('resource.observed', { resourceId: resource.id, ...stopped });
         const observed = await startAndObserve(container, resource.desired.appPort);
-        out.logs(await newLogs(container, resource.serviceId));
+        out.logs(await newLogs(container, resource.serviceId, session.logCursors?.[resource.serviceId]));
         out.emit('resource.observed', { resourceId: resource.id, ...observed });
         if (observed.state !== 'running') {
           throw new DriverFailure('CONTAINER_EXITED', `${resource.serviceId} exited with code ${observed.exitCode} during startup.`);
@@ -269,7 +274,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       }
       case 'container.logs': {
         const { container } = await locate();
-        const lines = await newLogs(container, resource.serviceId);
+        const lines = await newLogs(container, resource.serviceId, session.logCursors?.[resource.serviceId]);
         out.logs(lines);
         return { serviceId: resource.serviceId, tail: parameters.tail, newLines: lines.length };
       }
@@ -281,7 +286,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
         let state = 'created';
         if (wasRunning) {
           const observed = await startAndObserve(replacement, parameters.appPort);
-          out.logs(await newLogs(replacement, resource.serviceId));
+          out.logs(await newLogs(replacement, resource.serviceId, session.logCursors?.[resource.serviceId]));
           out.emit('resource.observed', { resourceId: resource.id, ...observed });
           state = observed.state;
         }
@@ -341,5 +346,110 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
     return { removed, remaining };
   }
 
-  return { setup, execute, teardown, ownedContainer, probeOnce, deploy, currentObservation, newLogs };
+  /** Owned resources of this installation, grouped by session, for restart recovery. */
+  async function inventory() {
+    const filters = ownershipFilter({ installationId });
+    const sessions = new Map();
+    const entry = (labels) => {
+      const id = labels[LABELS.session];
+      if (!sessions.has(id)) {
+        sessions.set(id, { sessionId: id, generation: 0, labId: labels[LABELS.lab] ?? null, fixtureId: labels[LABELS.fixture] ?? null, containers: [], networks: [] });
+      }
+      return sessions.get(id);
+    };
+    for (const summary of await docker.listContainers({ all: true, filters })) {
+      if (!isOwned(summary.Labels, { installationId }) || !summary.Labels[LABELS.session]) {
+        continue;
+      }
+      const item = entry(summary.Labels);
+      item.generation = Math.max(item.generation, Number(summary.Labels[LABELS.generation]) || 0);
+      item.fixtureId ??= summary.Labels[LABELS.fixture] ?? null;
+      item.containers.push({
+        name: summary.Names?.[0]?.replace(/^\//, '') ?? summary.Id.slice(0, 12),
+        serviceId: summary.Labels[LABELS.service] ?? null,
+        role: summary.Labels[LABELS.role] ?? null,
+        state: summary.State,
+        image: summary.Image,
+      });
+    }
+    for (const summary of await docker.listNetworks({ filters })) {
+      if (isOwned(summary.Labels, { installationId }) && summary.Labels?.[LABELS.session]) {
+        entry(summary.Labels).networks.push(summary.Name);
+      }
+    }
+    return [...sessions.values()];
+  }
+
+  /**
+   * Re-observe an owned session after a controller restart. Ownership comes from
+   * verified labels; desired configuration is read back from the containers.
+   */
+  async function recover({ sessionId }) {
+    const found = (await inventory()).find((item) => item.sessionId === sessionId);
+    if (!found || !found.labId || !found.fixtureId || found.generation < 1) {
+      throw new DriverFailure('RECOVERY_UNAVAILABLE', 'No recoverable resources with complete ownership labels exist for this session.');
+    }
+    const fixture = getFixture(found.fixtureId);
+    const session = { id: sessionId, generation: found.generation, labId: found.labId, fixtureId: found.fixtureId };
+    await joinNetwork(resourceName(sessionId, found.generation));
+    const now = new Date().toISOString();
+    const resources = [];
+    const logs = [];
+    for (const service of fixture.services) {
+      const { container, info } = await ownedContainer({ sessionId, generation: found.generation, serviceId: service.serviceId });
+      const env = Object.fromEntries((info.Config.Env ?? []).map((item) => [item.slice(0, item.indexOf('=')), item.slice(item.indexOf('=') + 1)]));
+      const appPort = Number(env.APP_PORT ?? service.appPort);
+      getRelease(info.Config.Image);
+      const observed = observationFrom(info, { appPort, stoppedByRequest: true });
+      resources.push({
+        id: `${service.serviceId}-g${found.generation}`,
+        sessionId,
+        generation: found.generation,
+        serviceId: service.serviceId,
+        kind: 'container',
+        desired: { image: info.Config.Image, appPort, expectedProbePort: service.expectedProbePort },
+        observed: { ...observed, source: 'docker', observedAt: now },
+      });
+      logs.push(...(await newLogs(container, service.serviceId)).slice(-50));
+    }
+    return { session, resources, logs };
+  }
+
+  /** Bounded CPU and memory samples; unavailable measurements are reported, not invented. */
+  async function metrics({ sessionId, generation }) {
+    const samples = [];
+    for (const summary of await docker.listContainers({ all: true, filters: ownershipFilter({ installationId, sessionId, generation }) })) {
+      if (summary.Labels[LABELS.role] !== 'workload') {
+        continue;
+      }
+      const serviceId = summary.Labels[LABELS.service];
+      const observedAt = new Date().toISOString();
+      if (summary.State !== 'running') {
+        samples.push({ serviceId, available: false, reason: `container is ${summary.State}`, observedAt, source: 'docker' });
+        continue;
+      }
+      try {
+        const stats = await docker.getContainer(summary.Id).stats({ stream: false });
+        const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - (stats.precpu_stats.cpu_usage?.total_usage ?? 0);
+        const systemDelta = (stats.cpu_stats.system_cpu_usage ?? 0) - (stats.precpu_stats.system_cpu_usage ?? 0);
+        const cpus = stats.cpu_stats.online_cpus || stats.cpu_stats.cpu_usage.percpu_usage?.length || 1;
+        const cache = stats.memory_stats.stats?.inactive_file ?? stats.memory_stats.stats?.cache ?? 0;
+        samples.push({
+          serviceId,
+          available: true,
+          cpuPercent: systemDelta > 0 && cpuDelta >= 0 ? Math.round((cpuDelta / systemDelta) * cpus * 10000) / 100 : 0,
+          memoryBytes: Math.max(0, (stats.memory_stats.usage ?? 0) - cache),
+          memoryLimitBytes: stats.memory_stats.limit ?? null,
+          pids: stats.pids_stats?.current ?? null,
+          observedAt,
+          source: 'docker',
+        });
+      } catch {
+        samples.push({ serviceId, available: false, reason: 'Docker did not return statistics.', observedAt, source: 'docker' });
+      }
+    }
+    return { samples };
+  }
+
+  return { setup, execute, teardown, ownedContainer, probeOnce, deploy, currentObservation, newLogs, inventory, recover, metrics };
 }

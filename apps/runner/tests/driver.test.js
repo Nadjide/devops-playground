@@ -99,6 +99,60 @@ describe('ownership labels and fixture builds', () => {
   });
 });
 
+describe('inventory, recovery, and metrics', () => {
+  const owned = (extra = {}) => ({
+    'devops-playground.managed': 'true', 'devops-playground.installation': 'inst', 'devops-playground.session': 's1',
+    'devops-playground.generation': '2', 'devops-playground.lab': 'stopped-container', 'devops-playground.fixture': 'api-stopped', ...extra,
+  });
+
+  it('groups only this installation\'s resources by session', async () => {
+    const docker = {
+      listContainers: async () => [
+        { Id: 'c1', Names: ['/dpg-s1-g2-api'], State: 'running', Image: 'devops-playground-lab/api:1.0.0', Labels: owned({ 'devops-playground.service': 'api', 'devops-playground.role': 'workload' }) },
+        { Id: 'c2', Names: ['/foreign'], State: 'running', Image: 'x', Labels: { ...owned(), 'devops-playground.installation': 'other' } },
+      ],
+      listNetworks: async () => [{ Name: 'dpg-s1-g2', Labels: owned() }],
+    };
+    const driver = createLabDriver({ docker, installationId: 'inst' });
+    expect(await driver.inventory()).toEqual([{
+      sessionId: 's1', generation: 2, labId: 'stopped-container', fixtureId: 'api-stopped',
+      containers: [{ name: 'dpg-s1-g2-api', serviceId: 'api', role: 'workload', state: 'running', image: 'devops-playground-lab/api:1.0.0' }],
+      networks: ['dpg-s1-g2'],
+    }]);
+  });
+
+  it('refuses recovery without complete ownership labels', async () => {
+    const docker = {
+      listContainers: async () => [{ Id: 'c1', Names: ['/x'], State: 'exited', Image: 'i', Labels: owned({ 'devops-playground.fixture': undefined }) }],
+      listNetworks: async () => [],
+    };
+    const driver = createLabDriver({ docker, installationId: 'inst' });
+    await expect(driver.recover({ sessionId: 's1' })).rejects.toEqual(expect.objectContaining({ code: 'RECOVERY_UNAVAILABLE' }));
+  });
+
+  it('computes CPU and memory from Docker statistics and reports stopped workloads as unavailable', async () => {
+    const docker = {
+      listContainers: async () => [
+        { Id: 'c1', State: 'running', Labels: owned({ 'devops-playground.service': 'api', 'devops-playground.role': 'workload' }) },
+        { Id: 'c2', State: 'exited', Labels: owned({ 'devops-playground.service': 'worker', 'devops-playground.role': 'workload' }) },
+        { Id: 'c3', State: 'running', Labels: owned({ 'devops-playground.role': 'pipeline-test' }) },
+      ],
+      getContainer: () => ({
+        stats: async () => ({
+          cpu_stats: { cpu_usage: { total_usage: 2_000_000 }, system_cpu_usage: 200_000_000, online_cpus: 4 },
+          precpu_stats: { cpu_usage: { total_usage: 1_000_000 }, system_cpu_usage: 100_000_000 },
+          memory_stats: { usage: 40 * 1024 * 1024, limit: 256 * 1024 * 1024, stats: { inactive_file: 8 * 1024 * 1024 } },
+          pids_stats: { current: 7 },
+        }),
+      }),
+    };
+    const { samples } = await createLabDriver({ docker, installationId: 'inst' }).metrics({ sessionId: 's1', generation: 2 });
+    expect(samples).toHaveLength(2);
+    expect(samples[0]).toMatchObject({ serviceId: 'api', available: true, cpuPercent: 4, memoryBytes: 32 * 1024 * 1024, memoryLimitBytes: 256 * 1024 * 1024, pids: 7, source: 'docker' });
+    expect(samples[1]).toMatchObject({ serviceId: 'worker', available: false, reason: 'container is exited' });
+  });
+});
+
 describe('lab driver cleanup', () => {
   it('removes partially created resources when fixture setup fails', async () => {
     const networkLabels = {

@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge.jsx';
 import { RecentOperations } from '../components/RecentOperations.jsx';
 import { formatTime, sourceLabel } from '../components/format.js';
 import { ObservationAge } from '../components/ObservationAge.jsx';
+import { ResourceMetrics } from './ResourceMetrics.jsx';
 
 function probeOutcome(probe) {
   return probe.ok ? `HTTP ${probe.statusCode}` : (probe.statusCode ? `HTTP ${probe.statusCode}` : probe.error);
@@ -91,6 +92,8 @@ export function MonitoringPanel() {
           The management interface health is separate from workload health.
         </p>
       ) : null}
+
+      <ResourceMetrics />
 
       <h3 className="section-label">Probe history</h3>
       {probes.length === 0 ? (

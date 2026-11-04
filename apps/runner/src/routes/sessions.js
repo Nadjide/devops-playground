@@ -17,6 +17,7 @@ const executeSchema = z.strictObject({
   ...sessionContext,
   resources: z.array(resourceSchema).max(3),
   pipeline: pipelineSchema.optional(),
+  logCursors: z.record(identifier, z.iso.datetime()).optional(),
   operation: z.strictObject({
     id: identifier,
     type: z.string(),
@@ -114,6 +115,7 @@ export function createSessionRouter({ driver, pipeline }) {
       const session = {
         id: req.params.sessionId, generation: body.generation, labId: body.labId, fixtureId: body.fixtureId,
         resources: body.resources, pipeline: body.pipeline ?? { knownGood: null, deployed: null, runs: [] },
+        logCursors: body.logCursors ?? {},
       };
       const out = {
         emit: (type, payload, { source = 'docker' } = {}) => write({ kind: 'emit', type, payload, source }),
@@ -132,6 +134,26 @@ export function createSessionRouter({ driver, pipeline }) {
       }
       return driver.execute({ session, operation, out });
     }, state);
+  });
+
+  router.post('/:sessionId/recover', async (req, res) => {
+    const body = parse(z.strictObject({}), req, res);
+    if (!body) {
+      return;
+    }
+    await stream(req, res, () => driver.recover({ sessionId: req.params.sessionId }));
+  });
+
+  router.post('/:sessionId/metrics', async (req, res) => {
+    const body = parse(z.strictObject({ generation: z.int().positive() }), req, res);
+    if (!body) {
+      return;
+    }
+    try {
+      res.json(await driver.metrics({ sessionId: req.params.sessionId, generation: body.generation }));
+    } catch (error) {
+      res.status(503).json({ error: failureLine(error) });
+    }
   });
 
   router.post('/:sessionId/teardown', async (req, res) => {

@@ -98,6 +98,8 @@ export function createRunnerClient({ url, token, fetchImpl = globalThis.fetch, t
     request,
     stream,
     health: () => request('/v1/health'),
+    inventory: () => request('/v1/resources'),
+    metrics: (sessionId, generation) => request(`/v1/sessions/${sessionId}/metrics`, { method: 'POST', body: { generation } }),
     docker: () => request('/v1/docker'),
   };
 }

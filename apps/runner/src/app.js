@@ -30,6 +30,13 @@ export function createRunnerApp({ config, docker, driver = null, pipeline = null
   });
 
   if (driver) {
+    app.get('/v1/resources', async (req, res) => {
+      try {
+        res.json({ sessions: await driver.inventory() });
+      } catch {
+        res.status(503).json(errorBody('DOCKER_UNAVAILABLE', 'Owned resources could not be listed.', { retryable: true }));
+      }
+    });
     app.use('/v1/sessions', createSessionRouter({ driver, pipeline }));
   }
 

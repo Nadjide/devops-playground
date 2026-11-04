@@ -17,6 +17,8 @@ runtime, and talks to the internal runner. It never mounts the Docker socket.
 | POST | `/api/sessions/:id/operations` | Validate and enqueue a typed operation (`202`) |
 | GET | `/api/sessions/:id/operations/:operationId` | Operation status and result |
 | GET | `/api/sessions/:id/events` | Server-Sent Events with `Last-Event-ID` replay |
+| GET | `/api/sessions/:id/metrics` | Measured CPU and memory of the session workloads |
+| POST | `/api/recovery/:sessionId` | After a controller restart: `recover` or `cleanup` owned resources |
 
 ## Trust Boundaries
 
@@ -33,6 +35,15 @@ runtime, and talks to the internal runner. It never mounts the Docker socket.
 - SSE replays only events after a valid cursor of the current epoch. Unknown,
   evicted, or foreign-epoch cursors receive `snapshot.required`. Heartbeats run
   every 15 seconds and slow subscribers are disconnected above 1 MiB buffered.
+
+## Restart Recovery
+
+On start, capabilities list sessions whose label-verified resources this
+installation still owns. `recover` re-observes them and adopts the session
+with its original ID and generation, a new event epoch, and unverified
+objectives; earlier SSE cursors receive `snapshot.required`. `cleanup` removes
+only that session's owned resources. On `SIGTERM` the controller ends open
+sessions before exiting, so `playground:down` normally leaves nothing behind.
 
 In Demo mode the portal serves the browser simulation and every session route
 answers `503 LOCAL_MODE_UNAVAILABLE`. In Local mode, a session is created only
