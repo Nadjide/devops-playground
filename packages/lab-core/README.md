@@ -1,8 +1,9 @@
 # Playground Domain Foundations
 
-`@devops-playground/lab-core` provides the shared JavaScript contracts and pure
-session state transitions used by the future workbench and local controller.
-Its source has no Node-specific imports and can run in a browser.
+`@devops-playground/lab-core` provides the shared JavaScript contracts, the
+pure session reducer, the lab runtime, and the deterministic simulator used by
+the workbench and the local controller. Its source has no Node-specific
+imports and runs in a browser.
 
 ## Run Checks
 
@@ -25,30 +26,25 @@ Each test runner has an explicit discovery scope.
 | `operationRequestSchema` | Discriminated operation type and approved parameters |
 | `operationSchema` | Owned operation identity and lifecycle timestamps/results |
 | `resourceSchema` | Owned container configuration and observed runtime facts |
-| `containerObservationSchema` | Lifecycle, health, ports, image, time, and source |
-| `sessionSchema` | Versioned snapshot with ownership and reference checks |
+| `sessionSchema` | Versioned snapshot with ownership, bounded probes, and bounded logs |
 | `eventSchema` | Typed event envelope and payload with canonical event ID |
-| `missionProgressSchema` | Objective status and evidence representation |
-| `objectiveEvidenceSchema` | Generation, revision, source, and observation evidence |
-| `operationTypeSchema` | Initial supported operation names |
+| `probeObservationSchema` | Structured health/version probe result with a 16 KiB body bound |
+| `logLineSchema` | One workload or system log line, at most 8 KiB |
 | `createSession` | Build an initial session from a validated lab manifest |
 | `reduceSession` | Apply one validated, ordered domain event without mutation |
 | `replaceSessionSnapshot` | Recover from event gaps or controller epoch changes |
-| `SessionStateError` | Transition error with a machine-readable `code` |
-
-Schemas reject unexpected fields. They validate structural contracts.
-Fixture lookup, allowed-operation authorization, execution, mission predicate
-evaluation, and scheduling belong to the subsequent lots in the master plan.
+| `createLabRuntime` | Own one session: validation, queueing, idempotency, reset, end |
+| `createSimulatorExecutor` | Deterministic browser Docker model for Demo mode |
+| `createSystemClock` / `createVirtualClock` | Wall clock and test clock with `advance` |
+| `DomainError` / `OperationFailure` | Typed request rejection and execution failure |
+| `labCatalog` / `getLabManifest` | Validated manifests loaded from `labs/` |
+| `getFixture` / `getRelease` | Approved fixtures and workload images |
 
 ## Deterministic Inputs
 
-`createSession` accepts `manifest`, `mode`, `resources`, `now`, and `nextId`.
-The injected `now` function returns an ISO UTC timestamp.
-`nextId` returns a safe identifier, first for the session and then for its event
-epoch. Default implementations use the current time and Web Crypto UUIDs.
-
-When supplying initial resources, their session ID and generation must match the
-created session. Tests inject known IDs and clocks to verify this contract.
+`createSession` and `createLabRuntime` accept injected `now`/`clock` and
+`nextId` functions. Tests use `createVirtualClock`, which only moves time
+through `advance(ms)` or `runAll()`, so no test sleeps.
 
 ## Event Ordering
 
@@ -58,14 +54,32 @@ Replayed events and results from an older generation or epoch return the origina
 snapshot unchanged. Missing events, future generations, foreign sessions,
 invalid transitions, and unknown resources raise typed errors.
 
-The current event set covers session status, session reset, resource observation,
-and operation lifecycle. Subsequent lots add their event types with their tests.
-Resource observations merge only the fields allowed by the observation schema.
+Event types cover session status and reset, resource observations, probe
+results, log batches, and operation lifecycle. Reset requires a prepared
+resetting state and reconciled operations, advances generation, clears
+operations, probes, and logs, and restores fresh mission progress.
 
-Reset requires a prepared resetting state and reconciled operations, advances
-generation, clears operation history, and restores fresh mission progress.
-An explicit snapshot replacement handles a new controller epoch.
-Replacement validates identity, generation, and freshness before accepting it.
+## Lab Runtime
+
+`createLabRuntime({ labId, mode, executor, clock, nextId })` returns an object
+with `start()`, `submit(request, { idempotencyKey })`, `getSession()`,
+`getEvents()`, `getOperation(id)`, `settled(id)`, `subscribe(listener)`, and
+`dispose()`.
+
+| Rule | Behavior |
+| --- | --- |
+| Validation | Malformed requests `400`, disallowed operations `422`, unknown services `404`, stale generation `409` |
+| Idempotency | Identical retry returns the original operation; a different payload returns `409` |
+| Serialization | Mutations run one at a time; inspect, logs, and probes run concurrently |
+| Capacity | 10 pending mutations and 10 active reads; excess returns `429` |
+| Retention | 1,000 events, 100 completed operations, 20 probes, 500 log entries / 256 KiB, 256 idempotency keys |
+| Reset | Cancels queued work, aborts running work, drops older-generation timers, recreates the fixture in a new generation |
+| End | Cancels work, tears down resources, and refuses further operations |
+
+Executors implement `setup`, `execute`, and `teardown` and report every effect
+through the runtime context (`emit`, `emitLogs`, `delay`, `later`). The browser
+simulator reports `simulator` provenance; real drivers use `docker`, `probe`,
+or `emulator`.
 
 ## Compatibility
 

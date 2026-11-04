@@ -1,19 +1,22 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown, Power, RotateCcw } from 'lucide-react';
 import { useSessionClient, useSessionState } from '../session/SessionContext.jsx';
+import { useSessionActions } from '../session/SessionActions.jsx';
+
+const items = [
+  { id: 'reset', label: 'Reset session', icon: RotateCcw, type: 'session.reset' },
+  { id: 'end', label: 'End session', icon: Power, type: 'session.end' },
+];
 
 export function SessionMenu() {
   const client = useSessionClient();
-  const state = useSessionState();
+  const { status, session } = useSessionState();
+  const { requestLifecycle } = useSessionActions();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef(null);
   const menuRef = useRef(null);
   const menuId = useId();
-
-  const items = [
-    { id: 'reset', label: 'Reset session', icon: RotateCcw, type: 'session.reset' },
-    { id: 'end', label: 'End session', icon: Power, type: 'session.end' },
-  ];
+  const accepting = ['active', 'degraded'].includes(session?.status);
 
   useEffect(() => {
     if (!open) {
@@ -56,7 +59,7 @@ export function SessionMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        disabled={state.status !== 'ready'}
+        disabled={status !== 'ready'}
         onClick={() => setOpen((value) => !value)}
       >
         Session <ChevronDown aria-hidden="true" size={14} />
@@ -64,7 +67,7 @@ export function SessionMenu() {
       {open ? (
         <div ref={menuRef} id={menuId} role="menu" aria-label="Session actions" className="menu" onKeyDown={onMenuKeyDown}>
           {items.map((item) => {
-            const available = client.isAvailable(item.type);
+            const available = accepting && client.isAvailable(item.type);
             const Icon = item.icon;
             return (
               <button
@@ -75,9 +78,11 @@ export function SessionMenu() {
                 className="menu-item"
                 aria-disabled={!available || undefined}
                 onClick={() => {
-                  if (available) {
-                    close();
+                  if (!available) {
+                    return;
                   }
+                  setOpen(false);
+                  requestLifecycle(item.type, { returnFocus: buttonRef.current });
                 }}
               >
                 <Icon aria-hidden="true" size={15} />

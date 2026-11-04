@@ -1,6 +1,10 @@
 import { labManifestSchema } from '../schemas/missions.js';
 import { sessionSchema } from '../schemas/session.js';
 import { eventSchema } from '../schemas/events.js';
+import { appendLogEntries, emptyLogBuffer, LIMITS } from '../schemas/observations.js';
+
+export const RETAINED_COMPLETED_OPERATIONS = 100;
+const ACTIVE_STATUSES = ['queued', 'running'];
 
 export class SessionStateError extends Error {
   constructor(code, message) {
@@ -38,15 +42,21 @@ export function createSession({
     status: 'initializing',
     resources,
     operations: [],
-    mission: {
-      id: lab.id,
-      status: 'not-started',
-      objectives: lab.objectives.map(({ id }) => ({ id, status: 'pending', evidence: null })),
-    },
+    mission: freshMission(lab),
+    probes: [],
+    logs: emptyLogBuffer(),
     lastEventSequence: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
+}
+
+export function freshMission(lab) {
+  return {
+    id: lab.id,
+    status: 'not-started',
+    objectives: lab.objectives.map(({ id }) => ({ id, status: 'pending', evidence: null })),
+  };
 }
 
 const sessionTransitions = {
@@ -66,6 +76,22 @@ const operationTransitions = {
   cancelled: [],
 };
 
+/** Keep every active operation and the most recent completed ones. */
+function pruneOperations(operations) {
+  let excess = operations.filter((operation) => !ACTIVE_STATUSES.includes(operation.status)).length -
+    RETAINED_COMPLETED_OPERATIONS;
+  if (excess <= 0) {
+    return operations;
+  }
+  return operations.filter((operation) => {
+    if (excess > 0 && !ACTIVE_STATUSES.includes(operation.status)) {
+      excess -= 1;
+      return false;
+    }
+    return true;
+  });
+}
+
 function applyOperation(state, event) {
   requireState(state.status !== 'ended', 'SESSION_ENDED', 'An ended session cannot receive operation progress.');
   const incoming = event.payload.operation;
@@ -77,7 +103,7 @@ function applyOperation(state, event) {
       'DUPLICATE_IDEMPOTENCY_KEY', 'The idempotency key is already registered.');
     requireState(['active', 'initializing'].includes(state.status),
       'SESSION_UNAVAILABLE', 'The session cannot accept operations in its current state.');
-    return { ...state, operations: [...state.operations, incoming] };
+    return { ...state, operations: pruneOperations([...state.operations, incoming]) };
   }
 
   requireState(existing, 'UNKNOWN_OPERATION', 'The operation has not been queued.');
@@ -92,13 +118,13 @@ function applyOperation(state, event) {
 
   return {
     ...state,
-    operations: state.operations.map((operation) => operation.id === incoming.id ? incoming : operation),
+    operations: pruneOperations(state.operations.map((operation) => operation.id === incoming.id ? incoming : operation)),
   };
 }
 
 function applyReset(state, event) {
   requireState(state.status === 'resetting', 'RESET_NOT_STARTED', 'Enter resetting state before replacing a fixture.');
-  requireState(!state.operations.some((operation) => ['queued', 'running'].includes(operation.status)),
+  requireState(!state.operations.some((operation) => ACTIVE_STATUSES.includes(operation.status)),
     'OPERATIONS_ACTIVE', 'Reconcile active operations before resetting the session.');
   const mission = event.payload.mission;
   requireState(mission.id === state.labId && mission.status === 'not-started' &&
@@ -114,6 +140,45 @@ function applyReset(state, event) {
     resources: event.payload.resources,
     operations: [],
     mission,
+    probes: [],
+    logs: emptyLogBuffer(),
+  };
+}
+
+function applyProbe(state, event) {
+  requireState(state.resources.some((resource) => resource.serviceId === event.payload.serviceId),
+    'UNKNOWN_RESOURCE', 'The probed service does not belong to this session.');
+  const record = {
+    ...event.payload,
+    eventId: event.id,
+    operationId: event.operationId,
+    generation: event.generation,
+    revision: event.revision,
+    source: event.source,
+    observedAt: event.occurredAt,
+  };
+  return { ...state, probes: [...state.probes, record].slice(-LIMITS.probeHistory) };
+}
+
+function applyLogs(state, event) {
+  for (const entry of event.payload.entries) {
+    requireState(entry.serviceId === null ||
+      state.resources.some((resource) => resource.serviceId === entry.serviceId),
+    'UNKNOWN_RESOURCE', 'The log entry references an unknown service.');
+  }
+  return { ...state, logs: appendLogEntries(state.logs, event.payload.entries, event.source) };
+}
+
+function applyResourceObservation(state, event) {
+  const resource = state.resources.find((item) => item.id === event.payload.resourceId);
+  requireState(resource, 'UNKNOWN_RESOURCE', 'The observed resource does not belong to this session.');
+  const { resourceId, ...observation } = event.payload;
+  return {
+    ...state,
+    resources: state.resources.map((item) => item.id === resourceId ? {
+      ...item,
+      observed: { ...item.observed, ...observation, source: event.source, observedAt: event.occurredAt },
+    } : item),
   };
 }
 
@@ -126,7 +191,7 @@ function applyEvent(state, event) {
     requireState(sessionTransitions[state.status].includes(status), 'INVALID_SESSION_TRANSITION',
       'The session cannot enter the requested state.');
     requireState(status !== 'ended' ||
-      !state.operations.some((operation) => ['queued', 'running'].includes(operation.status)),
+      !state.operations.some((operation) => ACTIVE_STATUSES.includes(operation.status)),
     'OPERATIONS_ACTIVE', 'Reconcile active operations before ending the session.');
     return { ...state, status };
   }
@@ -134,17 +199,14 @@ function applyEvent(state, event) {
     return applyOperation(state, event);
   }
 
-  requireState(state.status !== 'ended', 'SESSION_ENDED', 'An ended session cannot receive resource observations.');
-  const resource = state.resources.find((item) => item.id === event.payload.resourceId);
-  requireState(resource, 'UNKNOWN_RESOURCE', 'The observed resource does not belong to this session.');
-  const { resourceId, ...observation } = event.payload;
-  return {
-    ...state,
-    resources: state.resources.map((item) => item.id === resourceId ? {
-      ...item,
-      observed: { ...item.observed, ...observation, source: event.source, observedAt: event.occurredAt },
-    } : item),
-  };
+  requireState(state.status !== 'ended', 'SESSION_ENDED', 'An ended session cannot receive observations.');
+  if (event.type === 'probe.completed') {
+    return applyProbe(state, event);
+  }
+  if (event.type === 'log.appended') {
+    return applyLogs(state, event);
+  }
+  return applyResourceObservation(state, event);
 }
 
 export function reduceSession(snapshot, input) {

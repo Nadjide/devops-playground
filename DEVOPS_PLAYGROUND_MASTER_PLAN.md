@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L02 in review; merges delegated for L01-L17 |
+| Current delivery stage | L03 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -569,6 +569,13 @@ Required fields are illustrated below.
     "id": "stopped-container",
     "status": "in-progress",
     "objectives": []
+  },
+  "probes": [],
+  "logs": {
+    "entries": [],
+    "dropped": 0,
+    "bytes": 0,
+    "nextSeq": 1
   },
   "lastEventSequence": 7,
   "createdAt": "2026-11-04T10:00:00.000Z",
@@ -2727,8 +2734,8 @@ The ledger below describes the current verified execution state.
 | --- | --- | --- | --- | --- |
 | L00 | accepted | Included with L01 | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | Document consistency checks and owner launch |
 | L01 | merged | feat/lot-01-domain-foundations | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | 91 domain tests, 3 API tests, lint, fresh install, Docker, Compose, and GitHub CI passed; squash commit `aaf3c8b` |
-| L02 | pr-open | feat/lot-02-workbench-shell | Pending | 12 workbench unit tests, 95 domain tests, static build, 7 Playwright demo checks across 5 viewports |
-| L03 | planned | Pending | Pending | Pending |
+| L02 | merged | feat/lot-02-workbench-shell | [PR #2](https://github.com/Nadjide/devops-playground/pull/2) | 12 workbench tests, 95 domain tests, static build, 7 Playwright checks; [CI run 41830632214](https://github.com/Nadjide/devops-playground/actions/runs/41830632214); squash commit `d731518` |
+| L03 | pr-open | feat/lot-03-docker-simulator | Pending | 118 domain tests, 19 workbench tests, 9 Playwright demo checks |
 | L04 | planned | Pending | Pending | Pending |
 | L05 | planned | Pending | Pending | Pending |
 | L06 | planned | Pending | Pending | Pending |
@@ -2821,6 +2828,26 @@ and Playwright 1.64.1 Chromium.
 The introductory `stopped-container` manifest moved into `labs/` with a
 validated catalog and fixture registry. Container operations remain unavailable
 capabilities until the deterministic simulator lands in L03.
+
+### 26.6 L03 Local Verification
+
+Verified on 2026-11-04 in the owner's Windows environment with Node.js 22.18.0
+and Playwright 1.64.1 Chromium.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings |
+| `npm test` | Passed, 3 original API tests |
+| `npm run test:playground` | Passed, 118 domain tests and 19 workbench tests |
+| `npm run test:e2e:demo` | Passed, 9 checks; the Docker flows passed 3 consecutive repetitions |
+
+The shared `createLabRuntime` engine serializes mutations, runs read-only
+operations concurrently, enforces idempotency, queue, event, probe, log, and
+operation retention bounds, and drops observations from replaced generations.
+The deterministic simulator implements container lifecycle, inspect, logs,
+health, and version operations. Session snapshots gained bounded `probes` and
+`logs` fields, reflected in the section 9.2 example. Reset and end use one
+shared confirmation dialog so later terminal commands reuse the same path.
 
 ## 27. Decisions and Scope Change Control
 

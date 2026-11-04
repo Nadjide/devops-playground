@@ -6,6 +6,7 @@ import {
 import { operationSchema } from './operations.js';
 import { missionProgressSchema } from './missions.js';
 import { containerObservationSchema, resourceSchema } from './session.js';
+import { LIMITS, logLineSchema, probeObservationSchema } from './observations.js';
 
 const payloadSchemas = {
   'session.status-changed': z.strictObject({ status: sessionStatusSchema }),
@@ -15,6 +16,8 @@ const payloadSchemas = {
   }),
   'resource.observed': containerObservationSchema.omit({ source: true, observedAt: true })
     .partial().extend({ resourceId: identifierSchema, state: containerObservationSchema.shape.state }),
+  'probe.completed': probeObservationSchema,
+  'log.appended': z.strictObject({ entries: z.array(logLineSchema).min(1).max(LIMITS.logBatch) }),
   'operation.queued': z.strictObject({ operation: operationSchema }),
   'operation.started': z.strictObject({ operation: operationSchema }),
   'operation.succeeded': z.strictObject({ operation: operationSchema }),

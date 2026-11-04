@@ -24,6 +24,11 @@ export default [
     },
   },
   {
+    // Shared packages run in both browsers and Node: only common globals.
+    files: ['packages/**/*.js'],
+    languageOptions: { globals: { ...globals['shared-node-browser'] } },
+  },
+  {
     files: ['apps/web/**/*.{js,jsx}'],
     languageOptions: {
       sourceType: 'module',
