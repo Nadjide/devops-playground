@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "stopped-container",
+  "title": "Restore the API",
+  "description": "Inspect a stopped service and recover its HTTP health endpoint.",
+  "difficulty": "beginner",
+  "estimatedMinutes": 5,
+  "supportedModes": ["demo", "local"],
+  "fixtureId": "api-stopped",
+  "allowedOperations": [
+    "container.start",
+    "container.stop",
+    "container.restart",
+    "container.inspect",
+    "container.logs",
+    "health.probe",
+    "version.probe",
+    "session.reset",
+    "session.end"
+  ],
+  "objectives": [
+    {
+      "id": "inspect-evidence",
+      "label": "Inspect the service logs",
+      "predicateId": "evidence.logs-read",
+      "required": true
+    },
+    {
+      "id": "recover-service",
+      "label": "Run the API container",
+      "predicateId": "service.running",
+      "required": true
+    },
+    {
+      "id": "verify-health",
+      "label": "Verify a successful health response",
+      "predicateId": "service.health-verified",
+      "required": true
+    }
+  ]
+}
