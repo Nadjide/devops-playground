@@ -22,8 +22,17 @@ export default defineConfig({
       testMatch: /demo\/.*\.spec\.mjs/,
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      // Real local Docker through the packaged portal (started by scripts/e2e-local.js).
+      name: 'local',
+      testMatch: /local\/.*\.spec\.mjs/,
+      fullyParallel: false,
+      timeout: 180_000,
+      use: { ...devices['Desktop Chrome'], baseURL: `http://127.0.0.1:${process.env.PLAYGROUND_PORT ?? 3001}` },
+    },
   ],
-  webServer: {
+  // The static preview serves the demo project; the local project targets the packaged portal.
+  webServer: process.env.PLAYGROUND_E2E_LOCAL ? undefined : {
     command: 'npm run preview --workspace @devops-playground/web',
     url: DEMO_URL,
     reuseExistingServer: !process.env.CI,

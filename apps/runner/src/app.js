@@ -1,13 +1,14 @@
 import express from 'express';
 import { errorBody, requireRunnerToken } from './http.js';
 import { diagnoseDocker } from './docker/diagnostics.js';
+import { createSessionRouter } from './routes/sessions.js';
 
 /**
  * Internal runner API. It is reachable only on the private management
  * network, publishes no host port, and accepts only authenticated controller
  * requests with validated payloads.
  */
-export function createRunnerApp({ config, docker, diagnose = diagnoseDocker, now = () => new Date().toISOString() }) {
+export function createRunnerApp({ config, docker, driver = null, diagnose = diagnoseDocker, now = () => new Date().toISOString() }) {
   const app = express();
   const startedAt = Date.now();
   app.disable('x-powered-by');
@@ -27,6 +28,10 @@ export function createRunnerApp({ config, docker, diagnose = diagnoseDocker, now
     const diagnostics = await diagnose(docker);
     res.status(diagnostics.available ? 200 : 503).json(diagnostics);
   });
+
+  if (driver) {
+    app.use('/v1/sessions', createSessionRouter({ driver }));
+  }
 
   app.use((req, res) => {
     res.status(404).json(errorBody('NOT_FOUND', 'Unknown runner route.'));

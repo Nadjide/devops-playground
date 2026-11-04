@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phase A merged; L08 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phase A merged; L09 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2747,8 +2747,8 @@ The ledger below describes the current verified execution state.
 | L05 | merged | feat/lot-05-guided-missions | [PR #5](https://github.com/Nadjide/devops-playground/pull/5) | 194 domain tests, 37 workbench tests, 16 Playwright checks; [CI run 41836409932](https://github.com/Nadjide/devops-playground/actions/runs/41836409932); squash commit `91b8501` |
 | L06 | merged | feat/lot-06-simulated-pipeline | [PR #6](https://github.com/Nadjide/devops-playground/pull/6) | 207 domain tests, 41 workbench tests, 18 Playwright checks; [CI run 41850217454](https://github.com/Nadjide/devops-playground/actions/runs/41850217454); squash commit `4bf3b54` |
 | L07 | merged | feat/lot-07-demo-recovery | [PR #7](https://github.com/Nadjide/devops-playground/pull/7) | 219 domain tests, 51 workbench tests, 24 Playwright checks, Phase A matrix in section 26.10; [CI run 41851962026](https://github.com/Nadjide/devops-playground/actions/runs/41851962026); squash commit `9485b2a` |
-| L08 | pr-open | feat/lot-08-local-runner-foundations | Pending | 23 control tests, 13 runner tests, packaged Demo and Local stack checks on Docker Desktop |
-| L09 | planned | Pending | Pending | Pending |
+| L08 | merged | feat/lot-08-local-runner-foundations | [PR #8](https://github.com/Nadjide/devops-playground/pull/8) | 23 control, 13 runner tests, packaged stack checks on Docker Desktop and GitHub Actions; [CI run 41854698422](https://github.com/Nadjide/devops-playground/actions/runs/41854698422); squash commit `333f390` |
+| L09 | pr-open | feat/lot-09-local-docker-runtime | Pending | M01 and M02 against real Docker (API integration and browser), 26 control and 26 runner tests |
 | L10 | planned | Pending | Pending | Pending |
 | L11 | planned | Pending | Pending | Pending |
 | L12 | planned | Pending | Pending | Pending |
@@ -2968,6 +2968,28 @@ contains no Docker CLI; the launcher detects the socket group and passes it as
 `group_add` so the runner runs as the non-root `node` user; per-Dockerfile
 ignore files keep the standalone workload image unchanged. Workload mutation
 capabilities stay unavailable in Local mode until L09.
+
+### 26.12 L09 Local Verification
+
+Verified on 2026-11-04 on Windows with Docker Desktop Engine 29.7.2 (API 1.55).
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings |
+| `npm run test:playground` | Passed: 219 domain, 51 workbench, 26 control, 26 runner tests |
+| Fixture workload `npm test` (`labs/fixtures/api`) | Passed: health/version contracts, SIGTERM shutdown, deliberate 1.1.0 startup failure |
+| `npm run test:integration:local` | Passed: M01 and M02 against real containers, correlated with `docker inspect` and `docker logs` |
+| `npm run test:e2e:local` | Passed: M01 through the browser in Local Docker mode, reload reattachment, end-session cleanup |
+| Ownership | A foreign container carrying the session label but another installation survived cleanup |
+| Cleanup | After each ended session no owned container or network remained |
+
+Real workloads run as `node` with a read-only root filesystem, 256 MiB memory,
+0.5 CPU, 128 processes, no capabilities, `no-new-privileges`, no published
+ports, no bind mounts, and an internal per-session network. Probes reach only
+the fixed service alias and expected port, never follow redirects, and bound
+bodies to 16 KiB; a stopped workload is reported from its observed state.
+Fixture setup removes partial resources when it fails, and the controller ends
+open sessions on shutdown so `playground:down` leaves no owned resources.
 
 ## 27. Decisions and Scope Change Control
 

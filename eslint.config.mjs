@@ -45,12 +45,12 @@ export default [
     languageOptions: { globals: { ...globals.node } },
   },
   {
-    files: ['scripts/**/*.js'],
+    files: ['scripts/**/*.js', 'labs/fixtures/**/*.js'],
     languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
   },
   {
     // Playwright specs run in Node; page.evaluate callbacks run in the browser.
-    files: ['tests/e2e/**/*.mjs'],
+    files: ['tests/e2e/**/*.mjs', 'tests/integration/**/*.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   { rules: { eqeqeq: 'error', curly: 'error' } },

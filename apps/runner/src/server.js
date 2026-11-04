@@ -1,10 +1,14 @@
 import Docker from 'dockerode';
 import { createRunnerApp } from './app.js';
 import { loadRunnerConfig } from './config.js';
+import { loadInstallationId } from './installation.js';
+import { createLabDriver } from './docker/lab-driver.js';
 
 const config = loadRunnerConfig();
 const docker = new Docker({ socketPath: config.socketPath });
-const app = createRunnerApp({ config, docker });
+const installationId = loadInstallationId(config.installationFile);
+const driver = createLabDriver({ docker, installationId });
+const app = createRunnerApp({ config, docker, driver });
 
 const server = app.listen(config.port, config.host, () => {
   // Never log the token or the environment.

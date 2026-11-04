@@ -49,6 +49,20 @@ export function createSessionStore({
       return entry && entry.owner === owner ? entry.runtime : null;
     },
     list: () => [...sessions.values()].map((entry) => entry.runtime.getSession()),
+    listOwned: (owner) => [...sessions.values()].filter((entry) => entry.owner === owner).map((entry) => entry.runtime.getSession()),
+    /** End open sessions so the runner removes their resources before the controller exits. */
+    async shutdown({ timeoutMs = 20_000 } = {}) {
+      const ends = [...sessions.values()].filter(isOpen).map(async ({ runtime }) => {
+        const session = runtime.getSession();
+        if (!['active', 'degraded'].includes(session.status)) {
+          return;
+        }
+        const operation = runtime.submit({ type: 'session.end', generation: session.generation, parameters: {} },
+          { idempotencyKey: `shutdown-${session.generation}` });
+        await runtime.settled(operation.id);
+      });
+      await Promise.race([Promise.allSettled(ends), new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
+    },
     dispose() {
       for (const entry of sessions.values()) {
         entry.runtime.dispose();

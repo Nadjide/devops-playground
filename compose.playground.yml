@@ -26,6 +26,8 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    # Time to end sessions and let the runner remove their resources.
+    stop_grace_period: 30s
     depends_on:
       runner:
         condition: service_healthy

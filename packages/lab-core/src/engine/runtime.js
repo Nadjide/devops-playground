@@ -207,9 +207,10 @@ export function createLabRuntime({
       signal,
       session: () => session,
       now: timestamp,
-      emit(type, payload) {
+      /** `source` lets real drivers distinguish docker, probe, process, and emulator observations. */
+      emit(type, payload, { source: eventSource = source } = {}) {
         guard();
-        return emit(type, payload, { operationId: operation.id });
+        return emit(type, payload, { operationId: operation.id, eventSource });
       },
       emitLogs(lines) {
         guard();

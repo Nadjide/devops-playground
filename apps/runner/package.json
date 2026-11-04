@@ -9,8 +9,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@devops-playground/lab-core": "^0.1.0",
     "dockerode": "^5.0.1",
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "supertest": "^7.3.1",

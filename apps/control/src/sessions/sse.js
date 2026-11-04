@@ -62,6 +62,6 @@ export function streamSessionEvents(req, res, runtime, limits = SSE_LIMITS) {
 
   const unsubscribe = runtime.subscribe((event) => send(frame('domain', event, event.id)));
   const heartbeat = setInterval(() => send(': heartbeat\n\n'), limits.heartbeatMs);
-  req.on('close', close);
+  res.on('close', close);
   return close;
 }

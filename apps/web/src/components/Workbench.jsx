@@ -189,7 +189,7 @@ export function Workbench() {
     return (
       <div className="state-screen" role="status">
         <LoaderCircle aria-hidden="true" className="spin" size={22} />
-        <p>Preparing the demo session…</p>
+        <p>{state.loadingMessage ?? 'Preparing the demo session…'}</p>
       </div>
     );
   }
