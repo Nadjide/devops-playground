@@ -50,7 +50,7 @@ export default [
   },
   {
     // Playwright specs run in Node; page.evaluate callbacks run in the browser.
-    files: ['tests/e2e/**/*.mjs', 'tests/integration/**/*.mjs'],
+    files: ['tests/e2e/**/*.mjs', 'tests/integration/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   { rules: { eqeqeq: 'error', curly: 'error' } },
