@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phase A merged; L12 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phase A merged; Phase B through L12 merged; L13 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2751,8 +2751,8 @@ The ledger below describes the current verified execution state.
 | L09 | merged | feat/lot-09-local-docker-runtime | [PR #9](https://github.com/Nadjide/devops-playground/pull/9) | M01 and M02 against real Docker in integration and browser suites on Docker Desktop and GitHub Actions; [CI run 41859730546](https://github.com/Nadjide/devops-playground/actions/runs/41859730546); squash commit `6cdf3c9` |
 | L10 | merged | feat/lot-10-local-pipeline | [PR #10](https://github.com/Nadjide/devops-playground/pull/10) | Real local pipeline, M03 rollback, cancellation, browser flows on Docker Desktop and GitHub Actions; [CI run 41863336266](https://github.com/Nadjide/devops-playground/actions/runs/41863336266); squash commit `b0c02df` |
 | L11 | merged | feat/lot-11-local-recovery | [PR #11](https://github.com/Nadjide/devops-playground/pull/11) | Controller crash recovery and cleanup, runner interruption, concurrent reset, scoped launcher cleanup, 10-cycle stress on real Docker; [CI run 41899879671](https://github.com/Nadjide/devops-playground/actions/runs/41899879671); squash commit `d80cae8` |
-| L12 | pr-open | feat/lot-12-end-to-end-verification | Pending | Complete demo and local browser matrix, local security regression suite, CI summaries |
-| L13 | planned | Pending | Pending | Pending |
+| L12 | merged | feat/lot-12-end-to-end-verification | [PR #12](https://github.com/Nadjide/devops-playground/pull/12) | Complete demo and local browser matrix, local security regression suite, CI summaries; [CI run 41901649495](https://github.com/Nadjide/devops-playground/actions/runs/41901649495); squash commit `e4eaca2` |
+| L13 | pr-open | feat/lot-13-core-release-readiness | Pending | README, screenshots, `verify:playground` acceptance report from a clean clone, secret scan, per-session terminal transcript |
 | L14 | planned | Pending | Pending | Pending |
 | L15 | planned | Pending | Pending | Pending |
 | L16 | planned | Pending | Pending | Pending |
@@ -3051,6 +3051,70 @@ CI writes a job summary that separates simulated browser results from real
 Docker results. The original Docker job now waits on the Compose healthcheck
 with a bounded deadline instead of a fixed sleep. Local browser tests share one
 browser identity so a failing test cannot cascade through the one-session limit.
+
+### 26.16 L13 Core Release Acceptance
+
+Verified on 2026-11-04 on Windows 11 with Docker Desktop Engine 29.7.2 and
+Compose 5.4.0, from a fresh `git clone` of the lot commit followed by `npm ci`
+and `npm run verify:playground`. The same suites run on Ubuntu in GitHub
+Actions for the PR head.
+
+| Gate | Phase | Result | Seconds |
+| --- | --- | --- | --- |
+| Lint | Core | passed | 17 |
+| Original API tests | Core | passed | 8 |
+| Playground unit and API tests | A/B | passed | 68 |
+| Secret scan of tracked files | Core | passed | 0 |
+| Production workbench build | A | passed | 8 |
+| Simulated demo browser suite | A | passed (24 tests) | 50 |
+| Standalone workload image | Core | passed | 18 |
+| Playground Compose configuration | B | passed | 2 |
+| Packaged Demo mode start | B | passed | 36 |
+| Demo stack boundaries | B | passed | 7 |
+| Packaged Local mode start | B | passed | 30 |
+| Local stack boundaries | B | passed | 9 |
+| Real Docker integration | B | passed | 447 |
+| Local Docker browser suite | B | passed (5 tests) | 146 |
+| Stop playground | B | passed | 3 |
+
+Phase A criteria (section 23.1) and their evidence:
+
+| Criterion | Evidence |
+| --- | --- |
+| Static build starts without a backend | Demo browser suite with every backend request blocked; README screenshots from `vite preview` |
+| Name and Demo mode visible on first render | Demo suite first-render test |
+| M01, M02, M03 completable | Demo suite mission flows (26.15) |
+| Terminal and UI share operations | Workbench unit tests and demo terminal paths for M01 and M03 |
+| Coherent panels and simulation provenance | Demo suite cross-panel assertions; source labels on every observation |
+| Reset, reload, corrupt/oversized/incompatible storage | Demo suite persistence cases; lab-core checkpoint tests |
+| Desktop, mobile, keyboard | Demo suite at 1440, 1024, 768, 390, and 320 px with keyboard flows |
+| Required CI checks on the candidate commit | `Test` and `Demo E2E` jobs on the PR head |
+
+Phase B criteria (section 23.2) and their evidence:
+
+| Criterion | Evidence |
+| --- | --- |
+| Original API, Docker, and Compose paths | `test:ci`, standalone image, CI `Docker` job waiting on the Compose healthcheck |
+| `npm ci` from the root lockfile | Fresh clone install above |
+| Packaged Demo without runner or socket | Demo stack boundary check |
+| Local portal and runner on documented ports | Local stack boundary check: portal on 127.0.0.1:3001, runner with zero published ports |
+| Daemon absence and permission failures reported | Runner diagnostics tests; launcher prerequisite messages |
+| Local M01, M02, M03 on real resources | Real Docker integration and local browser suites |
+| Real health and version evidence | Probe records with `probe` source from the workload container |
+| Workbench available during workload failure | M03 crash flow in both local suites |
+| Runner rejects unauthenticated access; security regressions | Local security suite (26.15) |
+| Bounds and repeated sessions | 10-cycle stress and bounded metrics (26.14) |
+| Restart recovery and `playground:down` cleanup | Recovery suite and launcher cleanup report (26.14) |
+| Foreign resources survive cleanup | Foreign-installation container check (26.14) |
+| Windows and Linux evidence | This record and the `Playground stack` CI job |
+| README distinguishes demo from real execution | README modes table, Local Docker trust note, source labels |
+
+The README walkthrough was followed from the clean checkout: `npm run
+dev:playground` served the demo at `http://127.0.0.1:5173`, the first mission
+completed as documented, and `npm run playground:local` served the real lab at
+`http://127.0.0.1:3001`. Terminal output now belongs to one session, so a new
+session no longer shows a previous session's transcript. Nothing was published:
+no tag, release, or hosted demo was created.
 
 ## 27. Decisions and Scope Change Control
 

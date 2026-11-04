@@ -94,7 +94,7 @@ objective held, and stays recorded if the service later degrades.
 ### First mission walkthrough
 
 1. Open the workbench: the API container is stopped.
-2. Read its logs (Logs panel, the logs button, or `docker logs api` in the terminal) and see the graceful shutdown.
+2. Read its logs: open the Logs panel (or run `docker logs api` in the terminal) and find the graceful shutdown.
 3. Start the container (`docker start api` or the start button) and watch it become healthy.
 4. Probe `/health` from Monitoring or with `curl http://api:3000/health`.
 5. The mission completes and every objective shows its evidence.
