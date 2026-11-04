@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  generationSchema, identifierSchema, sessionStatusSchema,
+  generationSchema, identifierSchema, portSchema, sessionStatusSchema,
   sourceSchema, timestampSchema,
 } from './shared.js';
 import { operationSchema } from './operations.js';
@@ -16,6 +16,8 @@ const payloadSchemas = {
   }),
   'resource.observed': containerObservationSchema.omit({ source: true, observedAt: true })
     .partial().extend({ resourceId: identifierSchema, state: containerObservationSchema.shape.state }),
+  'resource.configured': z.strictObject({ resourceId: identifierSchema, appPort: portSchema }),
+  'mission.updated': missionProgressSchema,
   'probe.completed': probeObservationSchema,
   'log.appended': z.strictObject({ entries: z.array(logLineSchema).min(1).max(LIMITS.logBatch) }),
   'operation.queued': z.strictObject({ operation: operationSchema }),

@@ -1,11 +1,15 @@
 {
   "schemaVersion": 1,
   "id": "stopped-container",
+  "kind": "mission",
   "title": "Restore the API",
   "description": "Inspect a stopped service and recover its HTTP health endpoint.",
   "difficulty": "beginner",
   "estimatedMinutes": 5,
-  "supportedModes": ["demo", "local"],
+  "supportedModes": [
+    "demo",
+    "local"
+  ],
   "fixtureId": "api-stopped",
   "allowedOperations": [
     "container.start",
@@ -37,5 +41,15 @@
       "predicateId": "service.health-verified",
       "required": true
     }
+  ],
+  "hints": [
+    "Open the Logs panel or run docker logs api to see how the API stopped.",
+    "The shutdown was requested and clean (exit code 0), so the known-good container only needs to be started again.",
+    "Once it runs, probe GET /health on port 3000 from Monitoring or with curl."
+  ],
+  "solution": [
+    "docker logs api",
+    "docker start api",
+    "curl http://api:3000/health"
   ]
 }

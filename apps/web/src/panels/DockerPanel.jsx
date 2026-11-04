@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Container, LoaderCircle, Play, RotateCw, ScrollText, Search, Square, X } from 'lucide-react';
+import { Container, LoaderCircle, Play, RotateCw, ScrollText, Search, Settings2, Square, X } from 'lucide-react';
 import { useSessionClient, useSessionState } from '../session/SessionContext.jsx';
 import {
   describeOperation, isActive, latestSucceeded, useOperationDispatch, useServiceOperations,
@@ -18,7 +18,7 @@ const actions = [
   { type: 'container.logs', label: 'Read logs of', icon: ScrollText, parameters: { tail: 50 } },
 ];
 
-const DOCKER_TYPES = actions.map((action) => action.type);
+const DOCKER_TYPES = [...actions.map((action) => action.type), 'service.configure'];
 
 function InspectDetails({ operation, onClose }) {
   const { configuration, observed } = operation.result;
@@ -46,6 +46,46 @@ function InspectDetails({ operation, onClose }) {
         </dl>
       </div>
     </section>
+  );
+}
+
+function ConfigurationForm({ resource }) {
+  const dispatch = useOperationDispatch();
+  const [value, setValue] = useState(String(resource.desired.appPort));
+  const [error, setError] = useState(null);
+  const inputId = `appport-${resource.id}`;
+
+  function onSubmit(event) {
+    event.preventDefault();
+    const appPort = Number(value);
+    if (!/^[0-9]+$/.test(value) || appPort < 1024 || appPort > 65535) {
+      setError('appPort must be an integer from 1024 to 65535.');
+      return;
+    }
+    setError(null);
+    dispatch('service.configure', { serviceId: resource.serviceId, appPort });
+  }
+
+  return (
+    <form className="config-form" aria-label={`${resource.serviceId} configuration`} onSubmit={onSubmit} noValidate>
+      <label htmlFor={inputId}>appPort</label>
+      <input
+        id={inputId}
+        type="text"
+        inputMode="numeric"
+        value={value}
+        aria-invalid={Boolean(error) || undefined}
+        aria-describedby={`${inputId}-help`}
+        onChange={(event) => setValue(event.target.value.trim())}
+      />
+      <button type="submit" className="button">
+        <Settings2 aria-hidden="true" size={14} /> Apply configuration
+      </button>
+      <p id={`${inputId}-help`} className="small muted config-help">
+        expectedProbePort {resource.desired.expectedProbePort} is set by the lab and read-only. Applying a new appPort replaces the workload.
+      </p>
+      {error ? <p className="field-error" role="alert">{error}</p> : null}
+    </form>
   );
 }
 
@@ -97,6 +137,9 @@ function ResourceRow({ resource }) {
           <LoaderCircle aria-hidden="true" size={14} className="spin" />
           {pending.map((operation) => `${describeOperation(operation)} (${operation.status})`).join(', ')}
         </p>
+      ) : null}
+      {client.isAvailable('service.configure') ? (
+        <ConfigurationForm key={`${resource.id}:${resource.desired.appPort}`} resource={resource} />
       ) : null}
       {logs ? (
         <p className="small muted resource-note">

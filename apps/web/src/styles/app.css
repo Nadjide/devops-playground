@@ -1218,3 +1218,154 @@ input {
 .workbench-desktop [data-group="drawer"] .panel {
   grid-template-rows: auto minmax(0, 1fr);
 }
+
+/* Missions */
+
+.mission-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.completion {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.completion-title {
+  font-weight: 700;
+}
+
+.completion .small {
+  color: var(--text);
+}
+
+.evidence {
+  grid-column: 2;
+  font-size: 12px;
+}
+
+.evidence summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.evidence p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.evidence-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px var(--space-2);
+}
+
+.evidence-facts dt {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.guidance {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.guidance .button {
+  justify-self: start;
+}
+
+.hint-list,
+.solution-steps {
+  display: grid;
+  gap: 6px;
+}
+
+.hint-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--info-soft);
+}
+
+.hint-number {
+  font-weight: 700;
+}
+
+.solution-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.solution-steps {
+  padding-left: 1.4em;
+  list-style: decimal;
+}
+
+.field-stack {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-stack select {
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-weight: 400;
+}
+
+.config-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.config-form label {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.config-form input {
+  width: 7ch;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: var(--font-mono);
+}
+
+.config-form input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.config-help {
+  flex-basis: 100%;
+}
+
+.field-error {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+}

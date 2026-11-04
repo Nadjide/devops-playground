@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "wrong-port",
+  "kind": "mission",
+  "title": "Fix a port configuration",
+  "description": "The API is running, yet its health endpoint is unreachable on the expected port. Find the mismatch and apply an approved configuration.",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 8,
+  "supportedModes": [
+    "demo",
+    "local"
+  ],
+  "fixtureId": "api-wrong-port",
+  "allowedOperations": [
+    "container.start",
+    "container.stop",
+    "container.restart",
+    "container.inspect",
+    "container.logs",
+    "service.configure",
+    "health.probe",
+    "version.probe",
+    "session.reset",
+    "session.end"
+  ],
+  "objectives": [
+    {
+      "id": "inspect-evidence",
+      "label": "Find the listening port in the logs or inspect output",
+      "predicateId": "evidence.logs-read",
+      "required": true
+    },
+    {
+      "id": "apply-port",
+      "label": "Run the API on the expected probe port 3000",
+      "predicateId": "service.expected-port",
+      "required": true
+    },
+    {
+      "id": "verify-health",
+      "label": "Verify a successful health response on port 3000",
+      "predicateId": "service.health-verified",
+      "required": true
+    }
+  ],
+  "hints": [
+    "Inspect the api container or read its logs: which port does the process listen on?",
+    "Probes and the image healthcheck target port 3000, the expected port of this lab. The probe target cannot be changed.",
+    "Set appPort to 3000 in the container configuration and apply it; the workload is replaced with the new setting."
+  ],
+  "solution": [
+    "docker inspect api",
+    "Docker panel: set appPort to 3000 and apply the configuration",
+    "curl http://api:3000/health"
+  ]
+}

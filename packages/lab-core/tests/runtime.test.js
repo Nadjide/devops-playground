@@ -24,6 +24,7 @@ describe('lab runtime startup', () => {
     expect(api().observed).toMatchObject({ state: 'stopped', exitCode: 0, source: 'simulator' });
     expect(session.logs.entries.map((entry) => entry.message)).toEqual([
       '> devops-playground@1.0.0 start',
+      'Configuration loaded: APP_PORT=3000',
       'DevOps Playground API 1.0.0 listening on port 3000',
       'Received SIGTERM, closing HTTP server',
       'HTTP server closed, exiting with code 0',
@@ -99,7 +100,7 @@ describe('simulated container lifecycle', () => {
       observed: { state: 'stopped', source: 'simulator' },
     });
     const logs = await run('container.logs', { serviceId: 'api', tail: 2 });
-    expect(logs.result).toEqual({ serviceId: 'api', tail: 2, count: 2, firstSeq: 3, lastSeq: 4, truncated: false });
+    expect(logs.result).toEqual({ serviceId: 'api', tail: 2, count: 2, firstSeq: 4, lastSeq: 5, truncated: false });
   });
 
   it('serializes concurrent mutations into one coherent final state', async () => {

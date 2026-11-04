@@ -1,5 +1,5 @@
 import {
-  createLabRuntime, createSimulatorExecutor, createSystemClock, labCatalog,
+  availableLabs, createLabRuntime, createSimulatorExecutor, createSystemClock,
 } from '@devops-playground/lab-core';
 import { createStore } from './store.js';
 import { toClientError } from './errors.js';
@@ -12,7 +12,8 @@ const defaultNextId = () => globalThis.crypto.randomUUID();
  * shared lab runtime and the deterministic simulator; it never uses the network.
  */
 export function createDemoClient({
-  labId = labCatalog[0].id,
+  labId: initialLab,
+  fixtureId: initialFixture,
   clock = createSystemClock(),
   nextId = defaultNextId,
   executor = createSimulatorExecutor(),
@@ -30,6 +31,8 @@ export function createDemoClient({
   let unsubscribe = null;
   let disposed = false;
   let noticeCounter = 0;
+  const labs = availableLabs({ mode: 'demo', operations: executor.supportedOperations });
+  let selection = { labId: initialLab ?? labs[0].id, fixtureId: initialFixture ?? null };
 
   function sync() {
     if (!disposed && runtime) {
@@ -42,7 +45,15 @@ export function createDemoClient({
     runtime?.dispose();
     store.set({ status: 'loading', connection: 'connecting', session: null, events: [], notices: [], error: null });
     try {
-      runtime = createLabRuntime({ labId, mode: 'demo', executor, clock, nextId, onError });
+      runtime = createLabRuntime({
+        labId: selection.labId,
+        fixtureId: selection.fixtureId ?? undefined,
+        mode: 'demo',
+        executor,
+        clock,
+        nextId,
+        onError,
+      });
       unsubscribe = runtime.subscribe(sync);
       await runtime.start();
       if (!disposed) {
@@ -71,6 +82,13 @@ export function createDemoClient({
       backend: executor.backend ?? 'Browser simulator',
     },
     ready,
+    labs,
+    selection: () => selection,
+    /** Replace the session with a new one for another lab or fixture. */
+    startSession({ labId, fixtureId = null }) {
+      selection = { labId, fixtureId };
+      return initialize();
+    },
     getSnapshot: store.get,
     subscribe: store.subscribe,
     listenerCount: store.listenerCount,

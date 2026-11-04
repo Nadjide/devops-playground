@@ -24,11 +24,15 @@ export function createSession({
   manifest,
   mode = 'demo',
   resources = [],
+  fixtureId,
   now = () => new Date().toISOString(),
   nextId = () => globalThis.crypto.randomUUID(),
 }) {
   const lab = labManifestSchema.parse(manifest);
   requireState(lab.supportedModes.includes(mode), 'UNSUPPORTED_MODE', 'The lab does not support this mode.');
+  const fixture = fixtureId ?? lab.fixtureId;
+  requireState(fixture === lab.fixtureId || Boolean(lab.fixtureOptions?.includes(fixture)),
+    'UNSUPPORTED_FIXTURE', 'The lab does not offer this fixture.');
   const timestamp = now();
 
   return sessionSchema.parse({
@@ -36,6 +40,7 @@ export function createSession({
     id: nextId(),
     mode,
     labId: lab.id,
+    fixtureId: fixture,
     revision: 0,
     generation: 1,
     eventEpoch: nextId(),
@@ -56,6 +61,7 @@ export function freshMission(lab) {
     id: lab.id,
     status: 'not-started',
     objectives: lab.objectives.map(({ id }) => ({ id, status: 'pending', evidence: null })),
+    completion: null,
   };
 }
 
@@ -127,7 +133,7 @@ function applyReset(state, event) {
   requireState(!state.operations.some((operation) => ACTIVE_STATUSES.includes(operation.status)),
     'OPERATIONS_ACTIVE', 'Reconcile active operations before resetting the session.');
   const mission = event.payload.mission;
-  requireState(mission.id === state.labId && mission.status === 'not-started' &&
+  requireState(mission.id === state.labId && mission.status === 'not-started' && mission.completion === null &&
     mission.objectives.length === state.mission.objectives.length &&
     mission.objectives.every((objective) => objective.status === 'pending' && objective.evidence === null &&
       state.mission.objectives.some((previous) => previous.id === objective.id)),
@@ -169,6 +175,30 @@ function applyLogs(state, event) {
   return { ...state, logs: appendLogEntries(state.logs, event.payload.entries, event.source) };
 }
 
+function applyConfiguration(state, event) {
+  const resource = state.resources.find((item) => item.id === event.payload.resourceId);
+  requireState(resource, 'UNKNOWN_RESOURCE', 'The configured resource does not belong to this session.');
+  return {
+    ...state,
+    resources: state.resources.map((item) => item.id === resource.id
+      ? { ...item, desired: { ...item.desired, appPort: event.payload.appPort } }
+      : item),
+  };
+}
+
+function applyMission(state, event) {
+  const next = event.payload;
+  const previous = state.mission;
+  requireState(next.id === previous.id && next.objectives.length === previous.objectives.length &&
+    next.objectives.every((objective, index) => objective.id === previous.objectives[index].id),
+  'INVALID_MISSION_UPDATE', 'Mission updates must keep the active objectives.');
+  // Completion is a historical record: once written it cannot change.
+  requireState(previous.completion === null ||
+    JSON.stringify(previous.completion) === JSON.stringify(next.completion),
+  'COMPLETION_IMMUTABLE', 'A recorded mission completion cannot change.');
+  return { ...state, mission: next };
+}
+
 function applyResourceObservation(state, event) {
   const resource = state.resources.find((item) => item.id === event.payload.resourceId);
   requireState(resource, 'UNKNOWN_RESOURCE', 'The observed resource does not belong to this session.');
@@ -205,6 +235,12 @@ function applyEvent(state, event) {
   }
   if (event.type === 'log.appended') {
     return applyLogs(state, event);
+  }
+  if (event.type === 'resource.configured') {
+    return applyConfiguration(state, event);
+  }
+  if (event.type === 'mission.updated') {
+    return applyMission(state, event);
   }
   return applyResourceObservation(state, event);
 }

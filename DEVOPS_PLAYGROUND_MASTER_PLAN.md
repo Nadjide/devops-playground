@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L04 in review; merges delegated for L01-L17 |
+| Current delivery stage | L05 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -559,6 +559,7 @@ Required fields are illustrated below.
   "id": "session-demo-001",
   "mode": "demo",
   "labId": "stopped-container",
+  "fixtureId": "api-stopped",
   "revision": 3,
   "generation": 1,
   "eventEpoch": "epoch-001",
@@ -568,7 +569,8 @@ Required fields are illustrated below.
   "mission": {
     "id": "stopped-container",
     "status": "in-progress",
-    "objectives": []
+    "objectives": [],
+    "completion": null
   },
   "probes": [],
   "logs": {
@@ -2736,8 +2738,8 @@ The ledger below describes the current verified execution state.
 | L01 | merged | feat/lot-01-domain-foundations | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | 91 domain tests, 3 API tests, lint, fresh install, Docker, Compose, and GitHub CI passed; squash commit `aaf3c8b` |
 | L02 | merged | feat/lot-02-workbench-shell | [PR #2](https://github.com/Nadjide/devops-playground/pull/2) | 12 workbench tests, 95 domain tests, static build, 7 Playwright checks; [CI run 41830632214](https://github.com/Nadjide/devops-playground/actions/runs/41830632214); squash commit `d731518` |
 | L03 | merged | feat/lot-03-docker-simulator | [PR #3](https://github.com/Nadjide/devops-playground/pull/3) | 118 domain tests, 19 workbench tests, 9 Playwright checks; [CI run 41833064587](https://github.com/Nadjide/devops-playground/actions/runs/41833064587); squash commit `35984bc` |
-| L04 | pr-open | feat/lot-04-terminal-and-logs | Pending | 175 domain tests, 29 workbench tests, 12 Playwright demo checks |
-| L05 | planned | Pending | Pending | Pending |
+| L04 | merged | feat/lot-04-terminal-and-logs | [PR #4](https://github.com/Nadjide/devops-playground/pull/4) | 175 domain tests, 29 workbench tests, 12 Playwright checks; [CI run 41834430821](https://github.com/Nadjide/devops-playground/actions/runs/41834430821); squash commit `55bf2eb` |
+| L05 | pr-open | feat/lot-05-guided-missions | Pending | 194 domain tests, 37 workbench tests, 16 Playwright demo checks |
 | L06 | planned | Pending | Pending | Pending |
 | L07 | planned | Pending | Pending | Pending |
 | L08 | planned | Pending | Pending | Pending |
@@ -2866,6 +2868,26 @@ tokenizing with `shell-quote`, and validates exact command shapes against the
 active lab's services and approved probe ports. Log text is sanitized and
 bounded at runtime ingestion, and log events containing control characters
 fail schema validation. xterm loads lazily in its own chunk.
+
+### 26.8 L05 Local Verification
+
+Verified on 2026-11-04 in the owner's Windows environment with Node.js 22.18.0
+and Playwright 1.64.1 Chromium.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings |
+| `npm test` | Passed, 3 original API tests |
+| `npm run test:playground` | Passed, 194 domain tests and 37 workbench tests |
+| `npm run test:e2e:demo` | Passed, 16 checks including M01 by controls and by terminal, M02, and reset |
+
+Objective predicates resolve through the explicit `PREDICATES` registry and are
+evaluated by the shared runtime after every event, so demo and local drivers
+produce the same evidence. Health and version evidence must be newer than the
+current process start and at most 10 seconds old when first accepted. Mission
+completion is an immutable record; later degradation marks objectives
+invalidated without erasing it. Sessions now carry `fixtureId`, and mission
+progress carries `completion`; the section 9.2 example reflects both.
 
 ## 27. Decisions and Scope Change Control
 

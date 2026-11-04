@@ -1,5 +1,7 @@
 export { operationTypeSchema, operationRequestSchema, operationSchema } from './schemas/operations.js';
-export { labManifestSchema, objectiveEvidenceSchema, missionProgressSchema } from './schemas/missions.js';
+export {
+  labManifestSchema, missionCompletionSchema, missionProgressSchema, objectiveEvidenceSchema, PREDICATE_IDS,
+} from './schemas/missions.js';
 export { containerObservationSchema, resourceSchema, sessionSchema } from './schemas/session.js';
 export { eventSchema } from './schemas/events.js';
 export {
@@ -12,7 +14,9 @@ export { createLabSession } from './engine/lab-session.js';
 export { createLabRuntime, READ_ONLY_OPERATIONS, RUNTIME_LIMITS } from './engine/runtime.js';
 export { createSystemClock, createVirtualClock, delay } from './engine/clock.js';
 export { AbortedError, DomainError, OperationFailure } from './engine/errors.js';
-export { labCatalog, getLabManifest } from './missions/catalog.js';
+export { availableLabs, labCatalog, getLabManifest } from './missions/catalog.js';
+export { evaluateMission } from './missions/evaluate.js';
+export { FRESHNESS_MS, PREDICATES } from './missions/predicates.js';
 export {
   fixtureCatalog, getFixture, createFixtureResources, createFixtureHistory,
 } from './fixtures/catalog.js';

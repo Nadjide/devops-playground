@@ -14,7 +14,7 @@ export const SIMULATED_TIMINGS = Object.freeze({
 
 export const SIMULATED_OPERATIONS = Object.freeze([
   'container.start', 'container.stop', 'container.restart', 'container.inspect', 'container.logs',
-  'health.probe', 'version.probe', 'session.reset', 'session.end',
+  'service.configure', 'health.probe', 'version.probe', 'session.reset', 'session.end',
 ]);
 
 function resourceFor(ctx, serviceId) {
@@ -79,6 +79,32 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
     return { serviceId, state: 'stopped', exitCode: 0, changed: true };
   }
 
+  /** Apply an approved appPort; a running workload is replaced to pick it up. */
+  async function configure(operation, ctx) {
+    const { serviceId, appPort } = operation.parameters;
+    const resource = resourceFor(ctx, serviceId);
+    if (resource.desired.appPort === appPort) {
+      return { serviceId, appPort, changed: false, replaced: false };
+    }
+    const wasRunning = ['running', 'starting'].includes(resource.observed.state);
+    if (wasRunning) {
+      await stop(operation, ctx);
+    }
+    ctx.emit('resource.configured', { resourceId: resource.id, appPort });
+    lines(ctx, serviceId, [{
+      stream: 'system', level: 'info',
+      message: `Container ${serviceId} recreated from ${resource.desired.image} with APP_PORT=${appPort}`,
+    }]);
+    ctx.emit('resource.observed', {
+      resourceId: resource.id, state: 'created', health: 'unknown', exitCode: null, startedAt: null,
+      ports: [{ containerPort: appPort, hostPort: null }],
+    });
+    if (wasRunning) {
+      await start(operation, ctx);
+    }
+    return { serviceId, appPort, changed: true, replaced: true, state: resourceFor(ctx, serviceId).observed.state };
+  }
+
   async function inspect(operation, ctx) {
     await ctx.delay(timings.inspect);
     const resource = resourceFor(ctx, operation.parameters.serviceId);
@@ -140,6 +166,7 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
       return start(operation, ctx);
     },
     'container.inspect': inspect,
+    'service.configure': configure,
     'container.logs': logs,
     'health.probe': (operation, ctx) => probe('health', operation, ctx),
     'version.probe': (operation, ctx) => probe('version', operation, ctx),
