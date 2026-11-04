@@ -38,7 +38,10 @@ export function createControlApp({ config, store, runner, operations = [], execu
   });
 
   app.use(hostGuard(config.allowedHosts));
+  // Operation requests may carry a 64 KiB storage object; every other body stays within 64 KiB.
+  const operationBody = express.json({ limit: '160kb' });
   app.use('/api', originGuard(config.allowedOrigins), browserSession({ secure: config.cookieSecure }),
+    (req, res, next) => (req.method === 'POST' && /^\/sessions\/[^/]+\/operations$/.test(req.path) ? operationBody(req, res, next) : next()),
     express.json({ limit: '64kb' }), createApiRouter({ config, store, runner, operations, executorFactory }));
 
   const index = loadIndex(config.staticDir, config.mode);

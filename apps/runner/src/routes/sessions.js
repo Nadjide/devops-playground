@@ -1,6 +1,8 @@
 import express from 'express';
 import { z } from 'zod';
-import { getFixture, getLabManifest, operationRequestSchema, pipelineSchema, resourceSchema } from '@devops-playground/lab-core';
+import {
+  getFixture, getLabManifest, operationRequestSchema, pipelineSchema, resourceSchema, storageStateSchema,
+} from '@devops-playground/lab-core';
 import { errorBody } from '../http.js';
 import { DriverFailure } from '../docker/lab-driver.js';
 import { classifyDockerError } from '../docker/diagnostics.js';
@@ -17,6 +19,7 @@ const executeSchema = z.strictObject({
   ...sessionContext,
   resources: z.array(resourceSchema).max(3),
   pipeline: pipelineSchema.optional(),
+  storage: storageStateSchema.nullable().optional(),
   logCursors: z.record(identifier, z.iso.datetime()).optional(),
   operation: z.strictObject({
     id: identifier,
@@ -115,6 +118,7 @@ export function createSessionRouter({ driver, pipeline }) {
       const session = {
         id: req.params.sessionId, generation: body.generation, labId: body.labId, fixtureId: body.fixtureId,
         resources: body.resources, pipeline: body.pipeline ?? { knownGood: null, deployed: null, runs: [] },
+        storage: body.storage ?? null,
         logCursors: body.logCursors ?? {},
       };
       const out = {

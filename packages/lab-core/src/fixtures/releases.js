@@ -18,8 +18,9 @@ const storageDefinitions = [
 ];
 
 export const releaseCatalog = Object.freeze([
-  ...definitions.map((release) => ({ ...release, image: `${API_IMAGE}:${release.version}` })),
-  ...storageDefinitions.map((release) => ({ ...release, image: `${STORAGE_API_IMAGE}:${release.version}` })),
+  // `fixture` names the approved build context under labs/fixtures.
+  ...definitions.map((release) => ({ ...release, fixture: 'api', image: `${API_IMAGE}:${release.version}` })),
+  ...storageDefinitions.map((release) => ({ ...release, fixture: 'storage-api', image: `${STORAGE_API_IMAGE}:${release.version}` })),
 ].map((release) => Object.freeze(release)));
 
 export function getRelease(image) {

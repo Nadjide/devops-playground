@@ -12,6 +12,8 @@ export const STORAGE_PROVIDER_PROFILES = Object.freeze({
     id: 'aws-s3',
     label: 'AWS S3',
     service: 'Amazon S3',
+    // The local emulator that stands in for the service in Local Docker mode.
+    emulator: 'Moto',
     namespaceTerm: 'bucket',
     namespacesTerm: 'buckets',
     objectTerm: 'object',
@@ -58,6 +60,7 @@ export const STORAGE_PROVIDER_PROFILES = Object.freeze({
     id: 'azure-blob',
     label: 'Azure Blob',
     service: 'Azure Blob Storage',
+    emulator: 'Azurite',
     namespaceTerm: 'container',
     namespacesTerm: 'containers',
     objectTerm: 'blob',

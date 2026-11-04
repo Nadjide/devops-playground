@@ -37,6 +37,36 @@ filesystem, CPU, memory, and process limits, no capabilities, no published
 ports, and an internal per-session network. Probes use the fixed service alias
 and the lab's expected port only.
 
+## Storage Emulators
+
+Storage labs start one emulator per session generation, only when the selected
+lab needs it; core labs never pull or start one.
+
+| Provider | Emulator | Image | Exercised API |
+| --- | --- | --- | --- |
+| AWS S3 | Moto 5.2.5 in server mode | `motoserver/moto:5.2.5@sha256:59a1965d…` (pinned by digest) | ListBuckets, CreateBucket, DeleteBucket, Put/GetBucketTagging, PutObject, GetObject, ListObjectsV2, DeleteObject |
+
+The emulator joins the session's internal network as `storage`, publishes no
+port, and runs as `65534:65534` with a read-only root filesystem, a 32 MiB
+`/tmp`, no capabilities, `no-new-privileges`, 256 MiB, 0.5 CPU, and 128
+processes. It carries the same ownership labels as the workload with the role
+`emulator`, so teardown and `playground:cleanup` remove it with the session.
+Moto keeps data in memory: ending or resetting the session removes it, and a
+restarted emulator is re-observed as empty.
+
+The runner reaches it through `@aws-sdk/client-s3` 3.1159.0 with the endpoint
+`http://storage:5000`, region `us-east-1`, path-style addressing, and the fixed
+test credentials `testing`/`testing`. The endpoint is checked before a client
+is created, and explicit credentials, region, and endpoint mean environment
+variables, shared profiles, and instance metadata are never consulted.
+Namespaces are tagged `devops-playground-owner=lab`; anything else is read-only.
+
+The storage workload (`labs/fixtures/storage-api`) has no dependencies: it signs
+S3 requests with Signature Version 4 through `node:crypto`. Its `/storage-check`
+writes a fresh payload through its configured target, reads it back, and
+answers `200` with matching SHA-256 digests or `503` with the provider error;
+the runner validates that response before it becomes evidence.
+
 ## Pipeline
 
 `pipeline.run` deploys an approved candidate from the fixture catalog and

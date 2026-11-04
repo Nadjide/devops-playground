@@ -38,8 +38,9 @@ fixture and predicate identifiers resolve through explicit registries in
 - Reset starts a new generation with pending objectives.
 - Storage connectivity requires a fresh workload round trip from the current
   process; console listings or reads never satisfy it.
-- Storage labs run in Demo mode in this release; their fixtures include a
-  namespace owned by another team that stays read-only.
+- The S3 storage labs run in Demo mode and against a session-owned Moto
+  emulator in Local Docker mode; the Azure Blob labs run in Demo mode. Their
+  fixtures include a namespace owned by another team that stays read-only.
 - Provider variants keep their own wording, hints, solutions, naming rules, and
   errors. Switching provider always starts a new session.
 

@@ -175,6 +175,7 @@ npm run test:playground          # domain, workbench, control, runner unit and A
 npm run test:e2e:demo            # Playwright against the static demo, backend blocked
 npm run test:integration:local   # real Docker: missions, pipeline, recovery, security
 npm run test:e2e:local           # Playwright against real Docker
+npm run test:integration:cloud   # S3 missions against a real Moto emulator
 npm run verify:playground        # every core gate with an acceptance report
 ```
 
@@ -207,7 +208,7 @@ mission states, not installation problems.
 - Verified on Windows 11 with Docker Desktop (Engine 29.7.2, Compose 5.4.0) and on Ubuntu GitHub Actions runners.
 - macOS, rootless Docker, and remote Docker contexts are not verified.
 - One local session runs at a time; the workbench is single-user by design.
-- The storage missions run in the browser demo against simulated, session-scoped AWS S3 and Azure Blob storage; they never contact a cloud account. Local emulator execution is planned in later lots.
+- The storage missions never contact a cloud account. In the browser demo, AWS S3 and Azure Blob are simulated per session; in Local Docker mode the S3 missions run against a session-owned Moto 5.2.5 emulator and the real storage workload. Azure Blob local execution is planned in a later lot.
 - Nothing is published automatically: hosting the demo or tagging a release is an explicit owner decision.
 
 ## Why This Project Exists
