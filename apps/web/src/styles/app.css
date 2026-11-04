@@ -1097,3 +1097,124 @@ input {
 .button-danger:hover {
   filter: brightness(0.92);
 }
+
+/* Logs and terminal */
+
+.logs-panel,
+.events-panel,
+.terminal-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.logs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.field-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-inline select,
+.field-inline input {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.truncation-note {
+  padding: 6px var(--space-2);
+  border-left: 3px solid var(--warning);
+  background: var(--warning-soft);
+  font-size: 12px;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.log-list {
+  display: grid;
+  gap: 2px;
+  max-height: min(60vh, 520px);
+  overflow: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.log-entry {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 2px var(--space-3);
+  align-items: baseline;
+  padding: 2px 4px;
+}
+
+.log-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.log-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log-stderr .log-message {
+  color: var(--danger);
+}
+
+@container (max-width: 560px) {
+  .log-entry {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .log-message {
+    grid-column: 1 / -1;
+  }
+}
+
+.terminal-host {
+  height: 320px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--terminal-bg);
+}
+
+.workbench-desktop .terminal-panel {
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.workbench-desktop .terminal-host {
+  height: 100%;
+  min-height: 120px;
+}
+
+.workbench-desktop [data-group="drawer"] .panel,
+.workbench-desktop [data-group="drawer"] .panel-body {
+  height: 100%;
+}
+
+.workbench-desktop [data-group="drawer"] .panel {
+  grid-template-rows: auto minmax(0, 1fr);
+}

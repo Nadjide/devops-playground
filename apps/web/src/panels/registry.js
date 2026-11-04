@@ -3,7 +3,7 @@ import { DockerPanel } from './DockerPanel.jsx';
 import { MonitoringPanel } from './MonitoringPanel.jsx';
 import { LogsPanel } from './LogsPanel.jsx';
 import { EventsPanel } from './EventsPanel.jsx';
-import { TerminalPanel } from './TerminalPanel.jsx';
+import { LazyTerminalPanel } from './LazyTerminalPanel.jsx';
 import { PipelinePanel } from './PipelinePanel.jsx';
 
 export const panels = {
@@ -11,7 +11,7 @@ export const panels = {
   pipeline: { id: 'pipeline', title: 'Pipeline', heading: 'Delivery pipeline', icon: GitBranch, Component: PipelinePanel },
   monitoring: { id: 'monitoring', title: 'Monitoring', heading: 'Workload monitoring', icon: Activity, Component: MonitoringPanel },
   logs: { id: 'logs', title: 'Logs', heading: 'Workload logs', icon: ScrollText, Component: LogsPanel },
-  terminal: { id: 'terminal', title: 'Terminal', heading: 'Command terminal', icon: SquareTerminal, Component: TerminalPanel },
+  terminal: { id: 'terminal', title: 'Terminal', heading: 'Command terminal', icon: SquareTerminal, Component: LazyTerminalPanel },
   events: { id: 'events', title: 'Events', heading: 'Orchestration events', icon: ListTree, Component: EventsPanel },
 };
 

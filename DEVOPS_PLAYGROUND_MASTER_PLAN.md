@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L03 in review; merges delegated for L01-L17 |
+| Current delivery stage | L04 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2735,8 +2735,8 @@ The ledger below describes the current verified execution state.
 | L00 | accepted | Included with L01 | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | Document consistency checks and owner launch |
 | L01 | merged | feat/lot-01-domain-foundations | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | 91 domain tests, 3 API tests, lint, fresh install, Docker, Compose, and GitHub CI passed; squash commit `aaf3c8b` |
 | L02 | merged | feat/lot-02-workbench-shell | [PR #2](https://github.com/Nadjide/devops-playground/pull/2) | 12 workbench tests, 95 domain tests, static build, 7 Playwright checks; [CI run 41830632214](https://github.com/Nadjide/devops-playground/actions/runs/41830632214); squash commit `d731518` |
-| L03 | pr-open | feat/lot-03-docker-simulator | Pending | 118 domain tests, 19 workbench tests, 9 Playwright demo checks |
-| L04 | planned | Pending | Pending | Pending |
+| L03 | merged | feat/lot-03-docker-simulator | [PR #3](https://github.com/Nadjide/devops-playground/pull/3) | 118 domain tests, 19 workbench tests, 9 Playwright checks; [CI run 41833064587](https://github.com/Nadjide/devops-playground/actions/runs/41833064587); squash commit `35984bc` |
+| L04 | pr-open | feat/lot-04-terminal-and-logs | Pending | 175 domain tests, 29 workbench tests, 12 Playwright demo checks |
 | L05 | planned | Pending | Pending | Pending |
 | L06 | planned | Pending | Pending | Pending |
 | L07 | planned | Pending | Pending | Pending |
@@ -2848,6 +2848,24 @@ The deterministic simulator implements container lifecycle, inspect, logs,
 health, and version operations. Session snapshots gained bounded `probes` and
 `logs` fields, reflected in the section 9.2 example. Reset and end use one
 shared confirmation dialog so later terminal commands reuse the same path.
+
+### 26.7 L04 Local Verification
+
+Verified on 2026-11-04 in the owner's Windows environment with Node.js 22.18.0
+and Playwright 1.64.1 Chromium.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings |
+| `npm test` | Passed, 3 original API tests |
+| `npm run test:playground` | Passed, 175 domain tests and 29 workbench tests |
+| `npm run test:e2e:demo` | Passed, 12 checks including a terminal recovery flow and a rejected injection |
+
+The command parser lives in `lab-core`, rejects shell metacharacters before
+tokenizing with `shell-quote`, and validates exact command shapes against the
+active lab's services and approved probe ports. Log text is sanitized and
+bounded at runtime ingestion, and log events containing control characters
+fail schema validation. xterm loads lazily in its own chunk.
 
 ## 27. Decisions and Scope Change Control
 

@@ -13,6 +13,10 @@ export const LIMITS = Object.freeze({
   logBatch: 50,
 });
 
+// C0 and C1 controls except horizontal tab; log text must be sanitized before ingestion.
+// eslint-disable-next-line no-control-regex
+export const UNSAFE_TEXT = /[\u0000-\u0008\u000a-\u001f\u007f-\u009f]/;
+
 function utf8Bytes(value) {
   return new TextEncoder().encode(value).length;
 }
@@ -63,8 +67,9 @@ export const logLineSchema = z.strictObject({
   serviceId: identifierSchema.nullable(),
   stream: z.enum(['stdout', 'stderr', 'system']),
   level: z.enum(['info', 'warn', 'error']),
-  message: z.string().min(1).refine((value) => utf8Bytes(value) <= LIMITS.logLineBytes,
-    'Log line exceeds 8 KiB.'),
+  message: z.string().min(1)
+    .refine((value) => utf8Bytes(value) <= LIMITS.logLineBytes, 'Log line exceeds 8 KiB.')
+    .refine((value) => !UNSAFE_TEXT.test(value), 'Log line contains control characters.'),
   at: timestampSchema,
 });
 
