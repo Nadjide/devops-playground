@@ -53,7 +53,7 @@ export function createPipelineExecutor({ docker, installationId, driver, limits 
       User: 'node',
       Env: [`APP_VERSION=${release.version}`, 'NODE_ENV=test'],
       Labels: {
-        ...ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId }),
+        ...ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId, fixtureId: session.fixtureId }),
         [LABELS.role]: 'pipeline-test',
       },
       HostConfig: {

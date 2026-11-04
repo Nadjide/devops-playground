@@ -19,7 +19,7 @@ function loadIndex(staticDir, mode) {
  * Workbench control application: serves the built workbench and the
  * management API from one loopback origin. It stays up when workloads fail.
  */
-export function createControlApp({ config, store, runner, operations = [], logger = console, now = () => new Date().toISOString() }) {
+export function createControlApp({ config, store, runner, operations = [], executorFactory = null, logger = console, now = () => new Date().toISOString() }) {
   const app = express();
   const startedAt = Date.now();
   app.disable('x-powered-by');
@@ -39,7 +39,7 @@ export function createControlApp({ config, store, runner, operations = [], logge
 
   app.use(hostGuard(config.allowedHosts));
   app.use('/api', originGuard(config.allowedOrigins), browserSession({ secure: config.cookieSecure }),
-    express.json({ limit: '64kb' }), createApiRouter({ config, store, runner, operations }));
+    express.json({ limit: '64kb' }), createApiRouter({ config, store, runner, operations, executorFactory }));
 
   const index = loadIndex(config.staticDir, config.mode);
   app.use(express.static(config.staticDir, { index: false, maxAge: '1h', fallthrough: true }));

@@ -5,7 +5,8 @@
  *   node scripts/playground.js demo     Portal only (browser simulation, no runner, no socket)
  *   node scripts/playground.js local    Portal and runner (real local Docker)
  *   node scripts/playground.js status   Mode, controller, runner, Docker, owned resources
- *   node scripts/playground.js down     Stop the stack and report owned leftovers
+ *   node scripts/playground.js down     End sessions, stop the stack, report owned leftovers
+ *   node scripts/playground.js cleanup  Remove resources owned by this installation only
  *
  * PLAYGROUND_PORT selects the loopback portal port (default 3001).
  * The runner token is generated per launch and only passed through the
@@ -92,9 +93,22 @@ function compose(args, extraEnv = {}) {
   return run('docker', ['compose', '-f', COMPOSE_FILE, ...args], { env });
 }
 
-function ownedResources() {
-  const containers = run('docker', ['ps', '-a', '--filter', `label=${OWNED_LABEL}`, '--format', '{{.Names}} ({{.Status}})'], { capture: true });
-  const networks = run('docker', ['network', 'ls', '--filter', `label=${OWNED_LABEL}`, '--format', '{{.Name}}'], { capture: true });
+/** This installation's identity, read from its volume; it scopes every cleanup. */
+function installationId() {
+  const result = run('docker', ['run', '--rm', '--network', 'none', '-v', 'devops-playground_installation:/data:ro',
+    '--entrypoint', 'cat', 'node:22-alpine', '/data/installation.json'], { capture: true });
+  try {
+    const id = JSON.parse(result.stdout).id;
+    return /^[a-f0-9-]{36}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+function ownedResources(installation = installationId()) {
+  const filters = ['--filter', `label=${OWNED_LABEL}`, ...(installation ? ['--filter', `label=devops-playground.installation=${installation}`] : [])];
+  const containers = run('docker', ['ps', '-a', ...filters, '--format', '{{.Names}} ({{.Status}})'], { capture: true });
+  const networks = run('docker', ['network', 'ls', ...filters, '--format', '{{.Name}}'], { capture: true });
   const lines = (result) => (result.status === 0 ? result.stdout.split('\n').map((line) => line.trim()).filter(Boolean) : []);
   return { containers: lines(containers), networks: lines(networks) };
 }
@@ -165,14 +179,46 @@ function down() {
     for (const name of [...owned.containers, ...owned.networks]) {
       console.log(`  - ${name}`);
     }
+    console.log('Run "npm run playground:cleanup" to remove only these resources.');
   } else {
     console.log('No owned lab resources remain.');
   }
 }
 
+/** Remove containers and networks labeled with this installation, nothing else. */
+function cleanup() {
+  requireDocker();
+  const installation = installationId();
+  if (!installation) {
+    fail('No installation identity was found.', 'Nothing was removed: without the identity, ownership cannot be proven.');
+  }
+  const filter = ['--filter', `label=${OWNED_LABEL}`, '--filter', `label=devops-playground.installation=${installation}`];
+  const ids = (args) => run('docker', args, { capture: true }).stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const containers = ids(['ps', '-aq', ...filter]);
+  if (containers.length) {
+    run('docker', ['rm', '--force', ...containers], { capture: true });
+  }
+  const networks = ids(['network', 'ls', '-q', ...filter]);
+  for (const network of networks) {
+    // The runner joins lab networks to probe them; detach every endpoint before removal.
+    const endpoints = ids(['network', 'inspect', network, '--format', '{{range $id, $c := .Containers}}{{$id}}\n{{end}}']);
+    for (const endpoint of endpoints) {
+      run('docker', ['network', 'disconnect', '--force', network, endpoint], { capture: true });
+    }
+  }
+  if (networks.length) {
+    run('docker', ['network', 'rm', ...networks], { capture: true });
+  }
+  const owned = ownedResources(installation);
+  console.log(`Removed ${containers.length} container(s) and ${networks.length} network(s) owned by installation ${installation.slice(0, 8)}.`);
+  if (owned.containers.length || owned.networks.length) {
+    fail(`Some owned resources remain: ${[...owned.containers, ...owned.networks].join(', ')}`);
+  }
+}
+
 const command = process.argv[2];
-const commands = { demo: () => up('demo'), local: () => up('local'), status, down };
+const commands = { demo: () => up('demo'), local: () => up('local'), status, down, cleanup };
 if (!commands[command]) {
-  fail('Usage: node scripts/playground.js <demo|local|status|down>');
+  fail('Usage: node scripts/playground.js <demo|local|status|down|cleanup>');
 }
 Promise.resolve(commands[command]()).catch((error) => fail(error.message));

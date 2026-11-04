@@ -10,10 +10,12 @@ export const LABELS = Object.freeze({
   release: `${PREFIX}.release`,
   digest: `${PREFIX}.fixture-digest`,
   role: `${PREFIX}.role`,
+  fixture: `${PREFIX}.fixture`,
 });
 
-export function ownershipLabels({ installationId, sessionId, generation, labId }) {
+export function ownershipLabels({ installationId, sessionId, generation, labId, fixtureId }) {
   return {
+    ...(fixtureId ? { [LABELS.fixture]: fixtureId } : {}),
     [LABELS.managed]: 'true',
     [LABELS.installation]: installationId,
     [LABELS.session]: sessionId,

@@ -3,6 +3,7 @@ import { availableLabs, getLabManifest, labCatalog } from '@devops-playground/la
 import { ApiError, sendError } from '../errors.js';
 import { csrfTokenFor, requireCsrf } from '../security.js';
 import { streamSessionEvents } from '../sessions/sse.js';
+import { recoveredSnapshot } from '../sessions/recovery.js';
 
 const IDEMPOTENCY_KEY = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,79}$/;
@@ -21,7 +22,7 @@ function summarizeLab(lab) {
 }
 
 /** Management API. Demo-mode portals advertise that local execution is unavailable. */
-export function createApiRouter({ config, store, runner, operations }) {
+export function createApiRouter({ config, store, runner, operations, executorFactory = null, nextId = () => globalThis.crypto.randomUUID() }) {
   const router = express.Router();
   const labsFor = () => (config.mode === 'local' ? availableLabs({ mode: 'local', operations }) : []);
 
@@ -52,8 +53,14 @@ export function createApiRouter({ config, store, runner, operations }) {
       return;
     }
     const [health, docker] = await Promise.all([runner.health(), runner.docker()]);
+    let recoverable = [];
+    if (health.ok && docker.ok && runner.inventory) {
+      const inventory = await runner.inventory();
+      recoverable = (inventory.ok ? inventory.body.sessions : []).filter((item) => !store.has?.(item.sessionId));
+    }
     res.json({
       ...base,
+      recoverable,
       runner: health.ok ? { status: 'connected' } : { status: 'unavailable', error: health.error },
       docker: health.ok ? (docker.body ?? { available: false, error: docker.error }) : null,
       labs: health.ok && docker.ok ? labsFor().map(summarizeLab) : [],
@@ -91,6 +98,36 @@ export function createApiRouter({ config, store, runner, operations }) {
     }
     const session = await store.create({ owner: req.browserSession, labId: lab.id, fixtureId });
     res.status(201).json({ session });
+  });
+
+  // After a controller restart: re-adopt or remove resources this installation owns.
+  router.post('/recovery/:sessionId', requireCsrf(config.csrfSecret), async (req, res) => {
+    requireLocal();
+    const { action } = req.body ?? {};
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(req.params.sessionId) || !['recover', 'cleanup'].includes(action)) {
+      throw new ApiError(400, 'INVALID_REQUEST', 'Choose recover or cleanup for an owned session.');
+    }
+    if (store.has(req.params.sessionId)) {
+      throw new ApiError(409, 'SESSION_ALREADY_ACTIVE', 'This session is already managed by the controller.');
+    }
+    const executor = executorFactory();
+    if (action === 'cleanup') {
+      res.json({ cleanup: await executor.cleanup(req.params.sessionId) });
+      return;
+    }
+    const recovered = await executor.recover(req.params.sessionId);
+    const snapshot = recoveredSnapshot({ recovered, nextId, now: new Date().toISOString() });
+    const session = await store.adopt({ owner: req.browserSession, snapshot, logs: recovered.logs });
+    res.status(201).json({ session });
+  });
+
+  router.get('/sessions/:id/metrics', async (req, res) => {
+    const runtime = ownedRuntime(req);
+    const metrics = await runner.metrics(runtime.getSession().id, runtime.getSession().generation);
+    if (!metrics.ok) {
+      throw new ApiError(503, metrics.error?.code ?? 'METRICS_UNAVAILABLE', metrics.error?.message ?? 'Metrics are unavailable.', { retryable: true });
+    }
+    res.set('Cache-Control', 'no-store').json(metrics.body);
   });
 
   router.get('/sessions', (req, res) => {

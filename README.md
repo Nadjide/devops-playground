@@ -188,7 +188,8 @@ The packaged portal runs through Docker Compose and binds to
 npm run playground:demo     # portal only, browser simulation, no Docker socket
 npm run playground:local    # portal plus the internal runner for real local Docker
 npm run playground:status   # controller, runner, Docker, and owned lab resources
-npm run playground:down     # stop the stack and report owned leftovers
+npm run playground:down     # end sessions, stop the stack, report owned leftovers
+npm run playground:cleanup  # remove only resources owned by this installation
 ```
 
 Local mode gives the runner access to the Docker socket, which controls the host

@@ -7,6 +7,17 @@ export const LOCAL_OPERATIONS = Object.freeze([
   'session.reset', 'session.end',
 ]);
 
+/** Last ingested log time per service, which bounds log reads after a runner restart. */
+function lastLogTimes(session) {
+  const cursors = {};
+  for (const entry of session.logs.entries) {
+    if (entry.serviceId && (!cursors[entry.serviceId] || entry.at > cursors[entry.serviceId])) {
+      cursors[entry.serviceId] = entry.at;
+    }
+  }
+  return cursors;
+}
+
 const TIMEOUTS = { setup: 6 * 60_000, execute: 2 * 60_000, pipeline: 12 * 60_000, teardown: 60_000 };
 
 /** Runner failure surfaced through the API envelope (status, code, retryable). */
@@ -54,6 +65,7 @@ export function createLocalExecutorFactory({ runner }) {
               fixtureId: session.fixtureId,
               resources: session.resources,
               pipeline: session.pipeline,
+              logCursors: lastLogTimes(session),
               operation: { id: operation.id, type: operation.type, parameters: operation.parameters },
             }, {
               timeoutMs: pipelineRun ? TIMEOUTS.pipeline : TIMEOUTS.execute,
@@ -78,6 +90,20 @@ export function createLocalExecutorFactory({ runner }) {
           }
           if (outcome.failure) {
             throw new OperationFailure(outcome.failure.code, outcome.failure.message, { retryable: outcome.failure.retryable });
+          }
+          return outcome.result;
+        },
+        async recover(sessionId) {
+          const outcome = await runner.stream(`/v1/sessions/${sessionId}/recover`, {}, { timeoutMs: TIMEOUTS.setup });
+          if (outcome.failure) {
+            throw new RunnerFailure(outcome.failure, outcome.failure.code === 'RECOVERY_UNAVAILABLE' ? 409 : 503);
+          }
+          return outcome.result;
+        },
+        async cleanup(sessionId) {
+          const outcome = await runner.stream(`/v1/sessions/${sessionId}/teardown`, {}, { timeoutMs: TIMEOUTS.teardown });
+          if (outcome.failure) {
+            throw new RunnerFailure(outcome.failure);
           }
           return outcome.result;
         },

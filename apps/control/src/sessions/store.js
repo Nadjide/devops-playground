@@ -44,6 +44,32 @@ export function createSessionStore({
       sessions.set(session.id, { owner, runtime });
       return session;
     },
+    /** Take over a session rebuilt from re-observed resources after a controller restart. */
+    async adopt({ owner, snapshot, logs = [] }) {
+      if ([...sessions.values()].filter(isOpen).length >= ACTIVE_SESSION_LIMIT) {
+        throw new DomainError('CAPACITY_EXCEEDED', 'A local session is already active. End it before recovering another.', {
+          status: 429, retryable: true,
+        });
+      }
+      const runtime = createLabRuntime({
+        labId: snapshot.labId,
+        fixtureId: snapshot.fixtureId,
+        mode: 'local',
+        source: 'docker',
+        executor: executorFactory(),
+        clock,
+        nextId,
+        onError,
+      });
+      await runtime.start({
+        restore: snapshot,
+        restoreLogs: logs,
+        restoreMessage: 'Session recovered after a controller restart from label-verified resources; objectives need fresh evidence.',
+      });
+      sessions.set(snapshot.id, { owner, runtime });
+      return runtime.getSession();
+    },
+    has: (id) => sessions.has(id),
     get(id, owner) {
       const entry = sessions.get(id);
       return entry && entry.owner === owner ? entry.runtime : null;

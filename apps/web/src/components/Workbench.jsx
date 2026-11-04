@@ -194,6 +194,10 @@ export function Workbench() {
     );
   }
 
+  if (state.status === 'recovery') {
+    return <RecoveryChoice recoverable={state.recoverable} client={client} />;
+  }
+
   if (state.status === 'unavailable') {
     return <LocalDiagnostics diagnostics={state.diagnostics} onRetry={() => client.retry()} />;
   }
@@ -213,6 +217,30 @@ export function Workbench() {
       <SessionBanner />
       {isDesktop ? <DesktopWorkbench /> : <CompactWorkbench />}
     </>
+  );
+}
+
+function RecoveryChoice({ recoverable, client }) {
+  return (
+    <main className="state-screen diagnostics" aria-labelledby="recovery-title">
+      <h2 id="recovery-title">Recover owned lab resources</h2>
+      <p className="small">
+        The controller restarted while these resources existed. Ownership was verified from their labels.
+        Recovering re-observes them; objectives need fresh evidence. Cleaning up removes only these resources.
+      </p>
+      <ul className="recovery-list">
+        {recoverable.map((item) => (
+          <li key={item.sessionId} className="recovery-item">
+            <p><strong>{item.labId ?? 'Unknown lab'}</strong> · generation {item.generation} · {item.fixtureId ?? 'unknown fixture'}</p>
+            <p className="small muted">{item.containers.map((container) => `${container.name} (${container.state})`).join(', ') || 'No containers'}{item.networks.length ? ` · networks: ${item.networks.join(', ')}` : ''}</p>
+            <div className="dialog-actions">
+              <button type="button" className="button button-primary" disabled={!item.labId || !item.fixtureId} onClick={() => client.recover(item.sessionId)}>Recover session</button>
+              <button type="button" className="button" onClick={() => client.cleanupRecoverable(item.sessionId)}>Clean up resources</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </main>
   );
 }
 
