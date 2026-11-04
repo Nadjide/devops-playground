@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phase A merged; Phase B through L12 merged; L13 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phases A and B merged; L14 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2756,8 +2756,8 @@ The ledger below describes the current verified execution state.
 | L10 | merged | feat/lot-10-local-pipeline | [PR #10](https://github.com/Nadjide/devops-playground/pull/10) | Real local pipeline, M03 rollback, cancellation, browser flows on Docker Desktop and GitHub Actions; [CI run 41863336266](https://github.com/Nadjide/devops-playground/actions/runs/41863336266); squash commit `b0c02df` |
 | L11 | merged | feat/lot-11-local-recovery | [PR #11](https://github.com/Nadjide/devops-playground/pull/11) | Controller crash recovery and cleanup, runner interruption, concurrent reset, scoped launcher cleanup, 10-cycle stress on real Docker; [CI run 41899879671](https://github.com/Nadjide/devops-playground/actions/runs/41899879671); squash commit `d80cae8` |
 | L12 | merged | feat/lot-12-end-to-end-verification | [PR #12](https://github.com/Nadjide/devops-playground/pull/12) | Complete demo and local browser matrix, local security regression suite, CI summaries; [CI run 41901649495](https://github.com/Nadjide/devops-playground/actions/runs/41901649495); squash commit `e4eaca2` |
-| L13 | pr-open | feat/lot-13-core-release-readiness | Pending | README, screenshots, `verify:playground` acceptance report from a clean clone, secret scan, per-session terminal transcript |
-| L14 | planned | Pending | Pending | Pending |
+| L13 | merged | feat/lot-13-core-release-readiness | [PR #13](https://github.com/Nadjide/devops-playground/pull/13) | README, screenshots, `verify:playground` acceptance report from a clean clone, secret scan, per-session terminal transcript; [CI run 41906515871](https://github.com/Nadjide/devops-playground/actions/runs/41906515871); squash commit `769f3ad` |
+| L14 | pr-open | feat/lot-14-simulated-s3-lab | Pending | Storage contract, session schema 2 and checkpoint migration, simulated S3, M04 and M05 for S3, Cloud panel, `aws s3` terminal subset |
 | L15 | planned | Pending | Pending | Pending |
 | L16 | planned | Pending | Pending | Pending |
 | L17 | planned | Pending | Pending | Pending |
@@ -3119,6 +3119,35 @@ completed as documented, and `npm run playground:local` served the real lab at
 `http://127.0.0.1:3001`. Terminal output now belongs to one session, so a new
 session no longer shows a previous session's transcript. Nothing was published:
 no tag, release, or hosted demo was created.
+
+### 26.17 L14 Simulated S3 Verification
+
+Verified on 2026-11-04 on Windows in the browser demo. Every storage result is
+simulated and session-scoped; nothing contacts a cloud account.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run test:core` | 260 passed, including 38 storage tests: S3 naming rules, flat keys, content bounds, provider errors, ownership, object and quota limits, endpoint refusal, round-trip evidence, reset, provenance, and the `aws s3` grammar |
+| `npm run test:web`, `test:control`, `test:runner` | 55, 30, and 29 passed |
+| `npm run test:e2e:demo` | 28 passed, including M04 and M05 for S3 through the Cloud panel and the terminal, a 390 px Cloud panel, and migration of a version 1 checkpoint |
+
+Contract decisions:
+
+- Session schema version 2 adds `storage`; checkpoint version 2 migrates
+  version 1 checkpoints by adding an empty storage state.
+- Requested names use a safe character set so S3 answers with its own
+  `InvalidBucketName`; stored names always satisfy the provider rules.
+- Only `http://storage:5000`, the session emulator alias, is an approved
+  endpoint; any other endpoint is refused before execution.
+- The fixtures include `shared-audit-logs`, a bucket owned by another team,
+  which stays listable and readable but cannot be changed or targeted.
+- The connectivity objective needs a fresh round trip from the current workload
+  process; console listings and reads never satisfy it. M05 also requires the
+  bucket that holds the service's data, so creating the misspelled bucket is
+  not accepted as the repair.
+- Simulated object text stays within a 128 KiB session budget and reads return a
+  4 KiB preview, keeping checkpoints under 512 KiB.
 
 ## 27. Decisions and Scope Change Control
 
