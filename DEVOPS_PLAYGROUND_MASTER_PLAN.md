@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phase A merged; L10 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phase A merged; L11 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2749,7 +2749,7 @@ The ledger below describes the current verified execution state.
 | L07 | merged | feat/lot-07-demo-recovery | [PR #7](https://github.com/Nadjide/devops-playground/pull/7) | 219 domain tests, 51 workbench tests, 24 Playwright checks, Phase A matrix in section 26.10; [CI run 41851962026](https://github.com/Nadjide/devops-playground/actions/runs/41851962026); squash commit `9485b2a` |
 | L08 | merged | feat/lot-08-local-runner-foundations | [PR #8](https://github.com/Nadjide/devops-playground/pull/8) | 23 control, 13 runner tests, packaged stack checks on Docker Desktop and GitHub Actions; [CI run 41854698422](https://github.com/Nadjide/devops-playground/actions/runs/41854698422); squash commit `333f390` |
 | L09 | merged | feat/lot-09-local-docker-runtime | [PR #9](https://github.com/Nadjide/devops-playground/pull/9) | M01 and M02 against real Docker in integration and browser suites on Docker Desktop and GitHub Actions; [CI run 41859730546](https://github.com/Nadjide/devops-playground/actions/runs/41859730546); squash commit `6cdf3c9` |
-| L10 | pr-open | feat/lot-10-local-pipeline | Pending | Real local pipeline, M03 rollback, cancellation, browser flows |
+| L10 | merged | feat/lot-10-local-pipeline | [PR #10](https://github.com/Nadjide/devops-playground/pull/10) | Real local pipeline, M03 rollback, cancellation, browser flows on Docker Desktop and GitHub Actions; [CI run 41863336266](https://github.com/Nadjide/devops-playground/actions/runs/41863336266); squash commit `b0c02df` |
 | L11 | pr-open | feat/lot-11-local-recovery | Pending | Controller crash recovery and cleanup, runner interruption, concurrent reset, scoped launcher cleanup, 10-cycle stress on real Docker |
 | L12 | planned | Pending | Pending | Pending |
 | L13 | planned | Pending | Pending | Pending |
