@@ -8,6 +8,7 @@ import { operationTypeSchema } from './operations.js';
 export const PREDICATE_IDS = Object.freeze([
   'evidence.logs-read', 'service.running', 'service.health-verified',
   'service.expected-port', 'service.version-verified',
+  'storage.namespace-ready', 'storage.object-read-back', 'storage.workload-configured', 'storage.roundtrip-verified',
 ]);
 
 const objectiveDefinitionSchema = z.strictObject({
@@ -31,7 +32,7 @@ export const labManifestSchema = z.strictObject({
     .refine((items) => new Set(items).size === items.length, 'Duplicate execution mode.'),
   fixtureId: slugSchema,
   fixtureOptions: z.array(slugSchema).min(1).max(8).optional(),
-  allowedOperations: z.array(operationTypeSchema).min(1).max(16)
+  allowedOperations: z.array(operationTypeSchema).min(1).max(24)
     .refine((items) => new Set(items).size === items.length, 'Duplicate operation type.'),
   objectives: z.array(objectiveDefinitionSchema).max(20)
     .refine((items) => new Set(items.map((item) => item.id)).size === items.length,

@@ -160,9 +160,11 @@ describe('predicate freshness and registry', () => {
 
   it('lists only labs the backend can run completely', () => {
     expect(availableLabs({ mode: 'demo', operations: SIMULATED_OPERATIONS }).map((lab) => lab.id))
-      .toEqual(['stopped-container', 'wrong-port', 'broken-release', 'free-exploration']);
+      .toEqual(['stopped-container', 'wrong-port', 'broken-release', 'storage-provision', 'storage-config', 'free-exploration']);
     const limited = SIMULATED_OPERATIONS.filter((type) => type !== 'service.configure');
-    expect(availableLabs({ mode: 'demo', operations: limited }).map((lab) => lab.id)).toEqual(['stopped-container', 'broken-release']);
+    expect(availableLabs({ mode: 'demo', operations: limited }).map((lab) => lab.id))
+      .toEqual(['stopped-container', 'broken-release', 'storage-provision', 'storage-config']);
+    expect(availableLabs({ mode: 'local', operations: SIMULATED_OPERATIONS }).map((lab) => lab.id)).not.toContain('storage-provision');
     expect(labCatalog.every((lab) => lab.objectives.every((item) => item.predicateId in PREDICATES))).toBe(true);
   });
 

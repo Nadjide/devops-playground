@@ -555,7 +555,7 @@ Required fields are illustrated below.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "session-demo-001",
   "mode": "demo",
   "labId": "stopped-container",
@@ -584,6 +584,7 @@ Required fields are illustrated below.
     "deployed": null,
     "runs": []
   },
+  "storage": null,
   "lastEventSequence": 7,
   "createdAt": "2026-11-04T10:00:00.000Z",
   "updatedAt": "2026-11-04T10:00:03.000Z"
@@ -592,6 +593,9 @@ Required fields are illustrated below.
 
 Allowed modes are `demo` and `local`.
 Cloud resources additionally expose their emulator backend.
+`storage` is `null` for core labs; storage labs hold the provider, the approved
+endpoint, namespaces, object metadata, and workload round-trip records.
+Session schema version 2 introduced `storage`; version 1 checkpoints migrate.
 Allowed session statuses are `initializing`, `active`, `resetting`, `degraded`,
 `ending`, and `ended`.
 

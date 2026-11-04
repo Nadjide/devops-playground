@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "storage-provision",
+  "kind": "mission",
+  "title": "Provision storage for a service",
+  "description": "The reports service is configured to write to an S3 bucket that does not exist yet. Create it, prove you can write and read an object, then let the service verify its own round trip.",
+  "difficulty": "beginner",
+  "estimatedMinutes": 8,
+  "supportedModes": [
+    "demo"
+  ],
+  "fixtureId": "s3-unprovisioned",
+  "allowedOperations": [
+    "container.start",
+    "container.stop",
+    "container.restart",
+    "container.inspect",
+    "container.logs",
+    "health.probe",
+    "storage.namespace.create",
+    "storage.namespace.list",
+    "storage.namespace.delete",
+    "storage.object.put",
+    "storage.object.list",
+    "storage.object.get",
+    "storage.object.delete",
+    "storage.configure",
+    "storage.roundtrip.verify",
+    "session.reset",
+    "session.end"
+  ],
+  "objectives": [
+    {
+      "id": "create-namespace",
+      "label": "Create the bucket the reports service is configured for",
+      "predicateId": "storage.namespace-ready",
+      "required": true
+    },
+    {
+      "id": "write-read",
+      "label": "Write a text object and read the same content back",
+      "predicateId": "storage.object-read-back",
+      "required": true
+    },
+    {
+      "id": "verify-roundtrip",
+      "label": "Verify the service's own write and read through its storage check",
+      "predicateId": "storage.roundtrip-verified",
+      "required": true
+    }
+  ],
+  "hints": [
+    "Read the api logs or inspect it: which bucket does the service write to, and what error does it report?",
+    "Create exactly that bucket in the Cloud panel. Bucket names are lowercase and 3 to 63 characters long.",
+    "Write a small text object, read it back, then run the service storage check. Listing objects does not prove the service can reach them."
+  ],
+  "solution": [
+    "docker logs api",
+    "aws s3 mb s3://lab-reports",
+    "Cloud panel: write notes.txt with any text to lab-reports, then read notes.txt",
+    "curl http://api:3000/storage-check"
+  ]
+}

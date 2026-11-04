@@ -99,7 +99,7 @@ describe('runtime contracts', () => {
   });
 
   it.each([
-    { schemaVersion: 2 },
+    { schemaVersion: 1 },
     { revision: -1 },
     { eventEpoch: '../epoch' },
     { updatedAt: 'yesterday' },

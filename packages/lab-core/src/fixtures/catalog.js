@@ -1,8 +1,34 @@
-import { API_IMAGE, getRelease, getReleaseById, releaseRef, workloadLines } from './releases.js';
+import {
+  API_IMAGE, getRelease, getReleaseById, releaseRef, STORAGE_API_IMAGE, workloadLines,
+} from './releases.js';
+import { getStorageProvider, sha256Hex, STORAGE_CHECK_KEY } from '../storage/providers.js';
+import { utf8Bytes } from '../schemas/storage.js';
 import { STAGE_IDS } from '../schemas/pipeline.js';
 
 const KNOWN_GOOD = `${API_IMAGE}:1.0.0`;
 const DEFAULT_CANDIDATES = Object.freeze(['api-1-0-1', 'api-1-1-0']);
+const STORAGE_API = `${STORAGE_API_IMAGE}:1.0.0`;
+
+/** A bucket another team owns: listable and readable, never changed by the lab. */
+const FOREIGN_NAMESPACE = 'shared-audit-logs';
+const FOREIGN_OBJECT = {
+  namespace: FOREIGN_NAMESPACE,
+  key: 'retention-policy.txt',
+  content: 'Audit logs are retained for 90 days.\nOwner: platform team. Do not modify from lab sessions.\n',
+};
+
+function storageHistory({ provider, namespace, error }) {
+  const profile = getStorageProvider(provider);
+  return ({ release, service }) => {
+    const target = { provider, term: profile.namespaceTerm, namespace, endpoint: service.storage.endpoint };
+    const uri = profile.uri(namespace, STORAGE_CHECK_KEY);
+    return [
+      ...workloadLines.startup(release, service.appPort, target).map((line) => ({ ...line, offset: -240 })),
+      ...workloadLines.storageCheck({ ok: false, uri, error }).map((line) => ({ ...line, offset: -180 })),
+      ...workloadLines.storageCheck({ ok: false, uri, error }).map((line) => ({ ...line, offset: -60 })),
+    ];
+  };
+}
 
 const verifiedBaseline = () => ({
   knownGood: releaseRef(getReleaseById('api-1-0-0')),
@@ -96,6 +122,53 @@ const fixtures = {
       runs: [failedCandidateRun(base, source)],
     }),
   },
+  's3-unprovisioned': {
+    id: 's3-unprovisioned',
+    label: 'Reports service without its S3 bucket',
+    expectedVersion: '1.0.0',
+    expectedNamespace: 'lab-reports',
+    candidates: Object.freeze([]),
+    services: [{
+      serviceId: 'api', image: STORAGE_API, appPort: 3000, expectedProbePort: 3000, state: 'running', exitCode: null,
+      storage: { namespace: 'lab-reports', endpoint: getStorageProvider('aws-s3').endpoint },
+    }],
+    storage: {
+      provider: 'aws-s3',
+      namespaces: [{ name: FOREIGN_NAMESPACE, owned: false }],
+      objects: [FOREIGN_OBJECT],
+    },
+    history: storageHistory({
+      provider: 'aws-s3', namespace: 'lab-reports',
+      error: getStorageProvider('aws-s3').errors.namespaceMissing('lab-reports').message,
+    }),
+    // Storage labs have no delivery pipeline.
+    pipeline: () => ({ knownGood: null, deployed: null, runs: [] }),
+  },
+  's3-misconfigured': {
+    id: 's3-misconfigured',
+    label: 'Reports service pointed at the wrong S3 bucket',
+    expectedVersion: '1.0.0',
+    expectedNamespace: 'lab-reports',
+    candidates: Object.freeze([]),
+    services: [{
+      serviceId: 'api', image: STORAGE_API, appPort: 3000, expectedProbePort: 3000, state: 'running', exitCode: null,
+      storage: { namespace: 'lab-report', endpoint: getStorageProvider('aws-s3').endpoint },
+    }],
+    storage: {
+      provider: 'aws-s3',
+      namespaces: [{ name: 'lab-reports', owned: true }, { name: FOREIGN_NAMESPACE, owned: false }],
+      objects: [
+        { namespace: 'lab-reports', key: 'daily-summary.txt', content: 'Daily summary\nrequests=1824\nerrors=0\n' },
+        FOREIGN_OBJECT,
+      ],
+    },
+    history: storageHistory({
+      provider: 'aws-s3', namespace: 'lab-report',
+      error: getStorageProvider('aws-s3').errors.namespaceMissing('lab-report').message,
+    }),
+    // Storage labs have no delivery pipeline.
+    pipeline: () => ({ knownGood: null, deployed: null, runs: [] }),
+  },
 };
 
 export const fixtureCatalog = Object.freeze(Object.keys(fixtures));
@@ -124,6 +197,7 @@ export function createFixtureResources(fixtureId, { sessionId, generation, obser
         image: service.image,
         appPort: service.appPort,
         expectedProbePort: service.expectedProbePort,
+        ...(service.storage ? { storage: { ...service.storage } } : {}),
       },
       observed: {
         state: service.state,
@@ -158,4 +232,40 @@ export function createFixtureHistory(fixtureId, { now }) {
  */
 export function createFixturePipeline(fixtureId, { now, source = 'simulator' }) {
   return getFixture(fixtureId).pipeline({ base: Date.parse(now), source });
+}
+
+/**
+ * Seed storage for cloud fixtures. The simulator keeps object content in the
+ * snapshot; real backends seed their emulator and report metadata only.
+ */
+export async function createFixtureStorage(fixtureId, { now, source, withContent }) {
+  const seed = getFixture(fixtureId).storage;
+  if (!seed) {
+    return null;
+  }
+  const profile = getStorageProvider(seed.provider);
+  const createdAt = new Date(Date.parse(now) - 3_600_000).toISOString();
+  const objects = [];
+  for (const object of seed.objects) {
+    objects.push({
+      namespace: object.namespace,
+      key: object.key,
+      bytes: utf8Bytes(object.content),
+      sha256: await sha256Hex(object.content),
+      updatedAt: createdAt,
+      writer: 'fixture',
+      source,
+      observedAt: now,
+      ...(withContent ? { content: object.content } : {}),
+    });
+  }
+  return {
+    provider: seed.provider,
+    endpoint: profile.endpoint,
+    namespaces: seed.namespaces.map((namespace) => ({
+      name: namespace.name, owned: namespace.owned, createdAt, source, observedAt: now,
+    })),
+    objects,
+    roundTrips: [],
+  };
 }

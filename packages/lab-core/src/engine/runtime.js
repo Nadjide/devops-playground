@@ -21,6 +21,7 @@ export const RUNTIME_LIMITS = Object.freeze({
 
 export const READ_ONLY_OPERATIONS = Object.freeze([
   'container.inspect', 'container.logs', 'health.probe', 'version.probe',
+  'storage.namespace.list', 'storage.object.list', 'storage.object.get',
 ]);
 const LIFECYCLE_OPERATIONS = ['session.reset', 'session.end'];
 const PIPELINE_OPERATIONS = ['pipeline.run', 'pipeline.rollback'];
@@ -310,6 +311,7 @@ export function createLabRuntime({
         resources: setup.resources,
         mission: freshMission(lab),
         pipeline: setup.pipeline ?? emptyPipeline(),
+        storage: setup.storage ?? null,
       }, { generation });
       if (setup.logs?.length) {
         emitLogs(setup.logs);
@@ -518,6 +520,7 @@ export function createLabRuntime({
         fixtureId,
         resources: setup.resources,
         pipeline: setup.pipeline ?? emptyPipeline(),
+        storage: setup.storage ?? null,
         now: () => createdAt,
         nextId: () => {
           if (first) {

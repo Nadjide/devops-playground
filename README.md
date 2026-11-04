@@ -28,7 +28,7 @@ being operated.
 
 ## What It Demonstrates
 
-- A workbench where Docker, logs, terminal, monitoring, and pipeline panels share one session state and one event stream.
+- A workbench where Docker, cloud storage, logs, terminal, monitoring, and pipeline panels share one session state and one event stream.
 - A shared domain engine: validated contracts, a pure reducer, idempotent and serialized operations, bounded history, and generation-safe resets.
 - Evidence-based missions: objectives pass only on fresh observations (a running container, a real `200` from `/health`, the expected version), never on clicks.
 - A real local delivery chain: tests in a disposable container, image builds through the Engine API, deploy, verify, and rollback.
@@ -85,6 +85,8 @@ Set `PLAYGROUND_PORT` to use another loopback port.
 | Restore the API | The known-good API was stopped cleanly | You read the evidence, the container runs, and `/health` answers `200` for this process |
 | Fix a port configuration | The API listens on 3001 while probes expect 3000 | The workload runs with `appPort` 3000 and health succeeds on port 3000 |
 | Recover a broken release | Release 1.1.0 passed tests and build but crashes at startup | You inspected the failure and the service again reports version `1.0.0` and healthy |
+| Provision storage for a service | The reports service writes to an S3 bucket that does not exist | The bucket exists, you wrote and read an object back, and the service's own storage check round-trips its payload |
+| Repair a storage configuration | The service points at a misspelled bucket | The service uses the bucket that holds its data and a fresh storage check passes |
 | Free exploration | Any approved fixture | Nothing: operate, configure, run the pipeline, break, and recover |
 
 Hints are revealed one at a time; the solution appears only after an explicit,
@@ -205,7 +207,7 @@ mission states, not installation problems.
 - Verified on Windows 11 with Docker Desktop (Engine 29.7.2, Compose 5.4.0) and on Ubuntu GitHub Actions runners.
 - macOS, rootless Docker, and remote Docker contexts are not verified.
 - One local session runs at a time; the workbench is single-user by design.
-- Cloud storage labs (AWS S3 and Azure Blob through local emulators) are planned in later lots.
+- The S3 storage missions run in the browser demo against a simulated, session-scoped S3; they never contact a cloud account. Azure Blob and local emulator execution are planned in later lots.
 - Nothing is published automatically: hosting the demo or tagging a release is an explicit owner decision.
 
 ## Why This Project Exists

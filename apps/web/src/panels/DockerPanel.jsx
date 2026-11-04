@@ -36,6 +36,12 @@ function InspectDetails({ operation, onClose }) {
           <dd><span className="muted">image</span> <span className="mono">{configuration.image}</span></dd>
           <dd><span className="muted">appPort</span> <span className="mono">{configuration.appPort}</span></dd>
           <dd><span className="muted">expectedProbePort</span> <span className="mono">{configuration.expectedProbePort}</span> <span className="muted small">(read-only)</span></dd>
+          {configuration.storage ? (
+            <>
+              <dd><span className="muted">STORAGE_NAMESPACE</span> <span className="mono">{configuration.storage.namespace}</span></dd>
+              <dd><span className="muted">STORAGE_ENDPOINT</span> <span className="mono">{configuration.storage.endpoint}</span></dd>
+            </>
+          ) : null}
         </dl>
         <dl>
           <dt>Observed</dt>

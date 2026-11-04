@@ -30,7 +30,7 @@ export function RecentOperations({ types, label, limit = 5 }) {
         {operations.map((operation) => (
           <li key={operation.id} className="operation-row">
             <StatusBadge value={operation.status} />
-            <span>{describeOperation(operation)}</span>
+            <span>{describeOperation(operation, session)}</span>
             <span className="operation-detail">
               {operation.error ? operation.error.message : formatTime(operation.finishedAt ?? operation.startedAt)}
             </span>

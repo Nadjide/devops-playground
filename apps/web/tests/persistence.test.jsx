@@ -70,7 +70,7 @@ describe('demo checkpoints', () => {
     await actor.click(within(alert).getByRole('button', { name: 'Discard saved progress' }));
     await runAll(client);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(JSON.parse(storage.read(CHECKPOINT_KEY).value)).toMatchObject({ checkpointVersion: 1 });
+    expect(JSON.parse(storage.read(CHECKPOINT_KEY).value)).toMatchObject({ checkpointVersion: 2 });
   });
 
   it('can continue without overwriting unusable saved progress', async () => {

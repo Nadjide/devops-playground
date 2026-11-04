@@ -35,15 +35,63 @@ function labStatus(session, mode) {
     line(`Mission    ${session.mission.status}, ${done}/${session.mission.objectives.length} objectives satisfied`),
     ...session.resources.map((resource) => line(
       `Service    ${resource.serviceId}: ${resource.observed.state}, health ${resource.observed.health}, appPort ${resource.desired.appPort}`)),
+    ...(session.storage ? [line(
+      `Storage    ${session.storage.provider} at ${session.storage.endpoint}, ${session.storage.namespaces.length} namespace(s), ${session.storage.objects.length} object(s)`)] : []),
   ];
 }
 
-function help() {
-  const width = Math.max(...COMMAND_HELP.map((entry) => entry.usage.length));
+function help(session) {
+  const provider = session.storage?.provider ?? null;
+  // Storage commands are listed only where the lab has that provider.
+  const entries = COMMAND_HELP.filter((entry) => (!entry.storage || provider) && (!entry.provider || entry.provider === provider));
+  const width = Math.max(...entries.map((entry) => entry.usage.length));
   return [
     line('Supported workbench commands (no host shell is available):', 'muted'),
-    ...COMMAND_HELP.map((entry) => line(`  ${entry.usage.padEnd(width)}   ${entry.description}`)),
+    ...entries.map((entry) => line(`  ${entry.usage.padEnd(width)}   ${entry.description}`)),
   ];
+}
+
+const listingTime = (iso) => iso.slice(0, 19).replace('T', ' ');
+
+function storageOutput(view, result) {
+  switch (view) {
+    case 'aws.s3.ls':
+      return result.namespaces.length
+        ? result.namespaces.map((item) => line(`${item.name}${item.owned ? '' : '   (not owned by this lab)'}`))
+        : [line('(no buckets)', 'muted')];
+    case 'aws.s3.ls-objects':
+      return result.objects.length
+        ? result.objects.map((item) => line(`${listingTime(item.updatedAt)} ${String(item.bytes).padStart(10)} ${item.key}`))
+        : [line('(no objects)', 'muted')];
+    case 'aws.s3.mb':
+      return [line(`make_bucket: ${result.namespace}`, 'success')];
+    case 'aws.s3.rm':
+      return [line(`delete: s3://${result.namespace}/${result.key}`, 'success')];
+    case 'aws.s3.cp':
+      return [
+        ...result.content.split('\n').map((text) => line(text)),
+        ...(result.truncated ? [line(`[preview shows the first 4 KiB of ${result.bytes} bytes]`, 'muted')] : []),
+      ];
+    case 'curl/storage-check':
+      return [line(JSON.stringify({ ok: true, namespace: result.namespace, key: result.key, bytes: result.bytes, sha256: result.sha256 }))];
+    default:
+      return null;
+  }
+}
+
+function storageCheckFailure(session, operation) {
+  if (operation.error?.code === 'WORKLOAD_UNREACHABLE') {
+    const resource = session.resources.find((item) => item.serviceId === operation.parameters.serviceId);
+    return [line(`curl: (7) Failed to connect to ${operation.parameters.serviceId} port ${resource?.desired.expectedProbePort}: Connection refused`, 'error')];
+  }
+  const check = session.storage?.roundTrips.findLast((item) => item.operationId === operation.id);
+  if (check) {
+    return [
+      line(JSON.stringify({ ok: false, namespace: check.namespace, key: check.key, error: check.error })),
+      line(`curl: (22) The requested URL returned error: ${check.statusCode}`, 'error'),
+    ];
+  }
+  return [line(`curl: ${operation.error?.message ?? 'storage check failed'}`, 'error')];
 }
 
 function probeFailure(session, operation) {
@@ -86,6 +134,10 @@ function successOutput(view, operation, session) {
   if (view === 'pipeline.run' || view === 'pipeline.rollback') {
     return pipelineSummary(operation, session);
   }
+  const storage = storageOutput(view, result);
+  if (storage) {
+    return storage;
+  }
   switch (view) {
     case 'docker.start':
     case 'docker.stop':
@@ -113,6 +165,9 @@ function successOutput(view, operation, session) {
 }
 
 function failureOutput(view, operation, session) {
+  if (view === 'curl/storage-check') {
+    return storageCheckFailure(session, operation);
+  }
   if (view.startsWith('curl/')) {
     return [line(probeFailure(session, operation), 'error')];
   }
@@ -146,7 +201,7 @@ export async function runTerminalCommand(input, { client, requestLifecycle }) {
         return { lines: [], clear: true };
       }
       if (parsed.action === 'help') {
-        return { lines: help() };
+        return { lines: help(session) };
       }
       if (parsed.action === 'docker.ps') {
         return { lines: dockerPs(session) };

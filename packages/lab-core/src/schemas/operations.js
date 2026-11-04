@@ -3,9 +3,14 @@ import {
   generationSchema, identifierSchema, operationErrorSchema, portSchema,
   slugSchema, timestampSchema,
 } from './shared.js';
+import {
+  endpointSchema, namespaceInputSchema, objectContentSchema, objectKeySchema,
+} from './storage.js';
 
 const serviceParameters = z.strictObject({ serviceId: identifierSchema });
 const emptyParameters = z.strictObject({});
+const namespaceParameters = z.strictObject({ namespace: namespaceInputSchema });
+const objectParameters = namespaceParameters.extend({ key: objectKeySchema });
 
 const parameterSchemas = {
   'container.start': serviceParameters,
@@ -19,6 +24,15 @@ const parameterSchemas = {
   'pipeline.run': z.strictObject({ releaseId: slugSchema }),
   'pipeline.rollback': emptyParameters,
   'pipeline.cancel': emptyParameters,
+  'storage.namespace.create': namespaceParameters,
+  'storage.namespace.list': emptyParameters,
+  'storage.namespace.delete': namespaceParameters,
+  'storage.object.put': objectParameters.extend({ content: objectContentSchema }),
+  'storage.object.list': namespaceParameters,
+  'storage.object.get': objectParameters,
+  'storage.object.delete': objectParameters,
+  'storage.configure': serviceParameters.extend({ namespace: namespaceInputSchema, endpoint: endpointSchema.optional() }),
+  'storage.roundtrip.verify': serviceParameters,
   'session.reset': emptyParameters,
   'session.end': emptyParameters,
 };

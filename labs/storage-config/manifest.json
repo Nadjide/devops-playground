@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "storage-config",
+  "kind": "mission",
+  "title": "Repair a storage configuration",
+  "description": "The reports service fails every storage check although its bucket exists. Find the misconfiguration, point the service at the right bucket, and verify a fresh round trip.",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 8,
+  "supportedModes": [
+    "demo"
+  ],
+  "fixtureId": "s3-misconfigured",
+  "allowedOperations": [
+    "container.start",
+    "container.stop",
+    "container.restart",
+    "container.inspect",
+    "container.logs",
+    "health.probe",
+    "storage.namespace.create",
+    "storage.namespace.list",
+    "storage.namespace.delete",
+    "storage.object.put",
+    "storage.object.list",
+    "storage.object.get",
+    "storage.object.delete",
+    "storage.configure",
+    "storage.roundtrip.verify",
+    "session.reset",
+    "session.end"
+  ],
+  "objectives": [
+    {
+      "id": "inspect-evidence",
+      "label": "Find the storage error in the service logs or configuration",
+      "predicateId": "evidence.logs-read",
+      "required": true
+    },
+    {
+      "id": "fix-configuration",
+      "label": "Point the service at the bucket that holds its reports",
+      "predicateId": "storage.workload-configured",
+      "required": true
+    },
+    {
+      "id": "verify-roundtrip",
+      "label": "Verify a fresh round trip through the service's storage check",
+      "predicateId": "storage.roundtrip-verified",
+      "required": true
+    }
+  ],
+  "hints": [
+    "Read the api logs: which bucket does the failing storage check use?",
+    "Compare it with the buckets listed in the Cloud panel. One letter is missing.",
+    "Change the service's storage bucket in the Cloud panel, then run the storage check again. Creating a bucket with the wrong name would hide the real mistake."
+  ],
+  "solution": [
+    "docker logs api",
+    "aws s3 ls",
+    "Cloud panel: set the api bucket to lab-reports and apply",
+    "curl http://api:3000/storage-check"
+  ]
+}
