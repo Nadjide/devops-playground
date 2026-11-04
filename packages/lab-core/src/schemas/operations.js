@@ -16,8 +16,9 @@ const parameterSchemas = {
   'service.configure': serviceParameters.extend({ appPort: portSchema }),
   'health.probe': serviceParameters,
   'version.probe': serviceParameters,
-  'pipeline.run': z.strictObject({ fixtureId: slugSchema }),
+  'pipeline.run': z.strictObject({ releaseId: slugSchema }),
   'pipeline.rollback': emptyParameters,
+  'pipeline.cancel': emptyParameters,
   'session.reset': emptyParameters,
   'session.end': emptyParameters,
 };
