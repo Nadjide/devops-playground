@@ -4,8 +4,13 @@ export const LOCAL_OPERATIONS = Object.freeze([
   'container.start', 'container.stop', 'container.restart', 'container.inspect', 'container.logs',
   'service.configure', 'health.probe', 'version.probe',
   'pipeline.run', 'pipeline.rollback', 'pipeline.cancel',
+  'storage.namespace.create', 'storage.namespace.list', 'storage.namespace.delete',
+  'storage.object.put', 'storage.object.list', 'storage.object.get', 'storage.object.delete',
+  'storage.configure', 'storage.roundtrip.verify',
   'session.reset', 'session.end',
 ]);
+
+const RUNNER_SOURCES = ['docker', 'probe', 'emulator'];
 
 /** Last ingested log time per service, which bounds log reads after a runner restart. */
 function lastLogTimes(session) {
@@ -65,6 +70,7 @@ export function createLocalExecutorFactory({ runner }) {
               fixtureId: session.fixtureId,
               resources: session.resources,
               pipeline: session.pipeline,
+              storage: session.storage,
               logCursors: lastLogTimes(session),
               operation: { id: operation.id, type: operation.type, parameters: operation.parameters },
             }, {
@@ -72,7 +78,7 @@ export function createLocalExecutorFactory({ runner }) {
               signal: ctx.signal,
               onRecord(record) {
                 if (record.kind === 'emit') {
-                  ctx.emit(record.type, record.payload, { source: record.source === 'probe' ? 'probe' : 'docker' });
+                  ctx.emit(record.type, record.payload, { source: RUNNER_SOURCES.includes(record.source) ? record.source : 'docker' });
                 } else if (record.kind === 'logs') {
                   ctx.emitLogs(record.lines);
                 }

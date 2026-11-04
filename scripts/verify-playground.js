@@ -44,7 +44,8 @@ if (!demoOnly) {
     step('Packaged Local mode start', process.execPath, ['scripts/playground.js', 'local'], { phase: 'B' });
     step('Local stack boundaries', process.execPath, ['scripts/check-playground-stack.js', 'local'], { phase: 'B' });
     npm('Real Docker integration', 'test:integration:local', 'B');
-    npm('Local Docker browser suite', 'test:e2e:local', 'B');
+    npm('Local Docker browser suite', 'test:e2e:local', 'B/C');
+    npm('Real storage emulator integration', 'test:integration:cloud', 'C');
     step('Stop playground', process.execPath, ['scripts/playground.js', 'down'], { phase: 'B' });
   }
 }

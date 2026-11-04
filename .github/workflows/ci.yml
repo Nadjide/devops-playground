@@ -157,7 +157,48 @@ jobs:
             echo '| check-playground-stack demo | Packaged portal, no runner, no socket | ${{ steps.demo_stack.outcome }} |'
             echo '| check-playground-stack local | Portal and runner, real Docker daemon | ${{ steps.local_stack.outcome }} |'
             echo '| test:integration:local | Real containers, builds, probes, recovery, security | ${{ steps.integration.outcome }} |'
-            echo '| test:e2e:local | Browser against real Docker (M01-M03, runner outage, phone) | ${{ steps.local_e2e.outcome }} |'
+            echo '| test:e2e:local | Browser against real Docker (M01-M03, S3 storage, runner outage, phone) | ${{ steps.local_e2e.outcome }} |'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Show playground logs on failure
+        if: failure()
+        run: docker compose -f compose.playground.yml --profile local logs --no-color
+
+      - name: Stop playground and report owned resources
+        if: always()
+        run: npm run playground:down
+
+  cloud-emulators:
+    name: Cloud emulators
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run real local storage integration (pinned Moto emulator)
+        id: cloud
+        run: npm run test:integration:cloud
+
+      - name: Summarize emulator suites
+        if: always()
+        run: |
+          {
+            echo '### Storage labs against local emulators'
+            echo ''
+            echo '| Suite | Execution | Result |'
+            echo '| --- | --- | --- |'
+            echo '| test:integration:cloud | Session-owned Moto 5.2.5 and the storage workload on the runner Docker daemon | ${{ steps.cloud.outcome }} |'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show playground logs on failure

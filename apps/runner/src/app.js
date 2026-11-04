@@ -13,7 +13,8 @@ export function createRunnerApp({ config, docker, driver = null, pipeline = null
   const startedAt = Date.now();
   app.disable('x-powered-by');
   app.use(requireRunnerToken(config.token));
-  app.use(express.json({ limit: '64kb' }));
+  // Storage writes carry up to 64 KiB of text plus the session's storage state.
+  app.use(express.json({ limit: '256kb' }));
 
   app.get('/v1/health', (req, res) => {
     res.json({

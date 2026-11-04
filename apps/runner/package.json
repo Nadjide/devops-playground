@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1159.0",
     "@devops-playground/lab-core": "^0.1.0",
     "dockerode": "^5.0.1",
     "express": "^5.3.0",

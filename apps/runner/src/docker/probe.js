@@ -1,5 +1,7 @@
 export const PROBE_LIMITS = Object.freeze({ timeoutMs: 5000, bodyBytes: 16 * 1024 });
-const PATHS = { health: '/health', version: '/version' };
+// The storage check makes two storage requests inside the workload, so it gets a longer deadline.
+const PATHS = { health: '/health', version: '/version', 'storage-check': '/storage-check' };
+const TIMEOUTS = { health: PROBE_LIMITS.timeoutMs, version: PROBE_LIMITS.timeoutMs, 'storage-check': 15_000 };
 const ALIAS = /^[a-z][a-z0-9-]{0,62}$/;
 
 async function readBounded(response, limit) {
@@ -24,10 +26,10 @@ async function readBounded(response, limit) {
   return { text: Buffer.concat(chunks).toString('utf8'), truncated: false };
 }
 
-function describe(error, target) {
+function describe(error, target, timeoutMs) {
   const code = error?.cause?.code ?? error?.code;
   if (error?.name === 'TimeoutError' || code === 'UND_ERR_CONNECT_TIMEOUT') {
-    return `probe timed out after ${PROBE_LIMITS.timeoutMs} ms (${target})`;
+    return `probe timed out after ${timeoutMs} ms (${target})`;
   }
   if (code) {
     return `connect ${code} ${target}`;
@@ -50,7 +52,7 @@ export async function probeService({ serviceId, kind, port, fetchImpl = globalTh
   try {
     const response = await fetchImpl(`http://${target}${path}`, {
       redirect: 'manual',
-      signal: AbortSignal.timeout(PROBE_LIMITS.timeoutMs),
+      signal: AbortSignal.timeout(TIMEOUTS[kind]),
       headers: { accept: 'application/json' },
     });
     const durationMs = Date.now() - started;
@@ -67,6 +69,7 @@ export async function probeService({ serviceId, kind, port, fetchImpl = globalTh
     } catch {
       body = null;
     }
+    // The storage check answers 503 with a structured body when storage fails.
     const ok = response.status === 200 && body !== null;
     return {
       ...base, ok, statusCode: response.status, body,
@@ -74,6 +77,6 @@ export async function probeService({ serviceId, kind, port, fetchImpl = globalTh
       durationMs: Date.now() - started,
     };
   } catch (error) {
-    return { ...base, ok: false, statusCode: null, body: null, error: describe(error, target), durationMs: Date.now() - started };
+    return { ...base, ok: false, statusCode: null, body: null, error: describe(error, target, TIMEOUTS[kind]), durationMs: Date.now() - started };
   }
 }

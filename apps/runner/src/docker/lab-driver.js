@@ -1,11 +1,18 @@
 import os from 'node:os';
 import {
-  createFixturePipeline, createFixtureResources, getFixture, getRelease,
+  createFixturePipeline, createFixtureResources, getFixture, getRelease, getStorageProvider,
 } from '@devops-playground/lab-core';
 import { ensureReleaseImage } from './images.js';
 import { isOwned, LABELS, ownershipFilter, ownershipLabels, resourceName } from './labels.js';
 import { observationFrom, readContainerLogs } from './observe.js';
 import { probeService } from './probe.js';
+import { DriverFailure } from './errors.js';
+import { createStorageDriver, workloadStorageEnv } from '../storage/storage-driver.js';
+
+const STORAGE_OPERATIONS = [
+  'storage.namespace.create', 'storage.namespace.list', 'storage.namespace.delete',
+  'storage.object.put', 'storage.object.list', 'storage.object.get', 'storage.object.delete',
+];
 
 export const WORKLOAD_LIMITS = Object.freeze({
   memoryBytes: 256 * 1024 * 1024,
@@ -16,13 +23,7 @@ export const WORKLOAD_LIMITS = Object.freeze({
   logTail: 200,
 });
 
-export class DriverFailure extends Error {
-  constructor(code, message, { retryable = false } = {}) {
-    super(message);
-    this.code = code;
-    this.retryable = retryable;
-  }
-}
+export { DriverFailure };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -31,7 +32,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * by ownership labels and re-verifies them on the inspected object first.
  * Workloads get a dedicated internal network, no socket, and no runner token.
  */
-export function createLabDriver({ docker, installationId, selfContainerId = os.hostname(), probe = probeService }) {
+export function createLabDriver({
+  docker, installationId, selfContainerId = os.hostname(), probe = probeService,
+  storageDriver = createStorageDriver({ docker, installationId }),
+}) {
   const logCursors = new Map();
 
   async function ownedContainer({ sessionId, generation, serviceId }) {
@@ -77,12 +81,13 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
     }
   }
 
-  async function createWorkload({ session, service, image, appPort, network }) {
+  /** `storage` is `{ provider, target }` for storage-capable workloads. */
+  async function createWorkload({ session, service, image, appPort, network, storage = null }) {
     const name = resourceName(session.id, session.generation, service.serviceId);
     return docker.createContainer({
       name,
       Image: image,
-      Env: [`APP_PORT=${appPort}`],
+      Env: [`APP_PORT=${appPort}`, ...(storage ? workloadStorageEnv(storage.provider, storage.target) : [])],
       Labels: { ...ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId, fixtureId: session.fixtureId }), [LABELS.service]: service.serviceId, [LABELS.role]: 'workload' },
       User: 'node',
       StopTimeout: WORKLOAD_LIMITS.stopSeconds,
@@ -151,11 +156,16 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       Labels: ownershipLabels({ installationId, sessionId: session.id, generation: session.generation, labId: session.labId, fixtureId: session.fixtureId }),
     });
     await joinNetwork(network);
+    // Storage labs get their emulator first so the workload finds it at startup.
+    const storage = await storageDriver.provision({ session, network, onLine });
 
     const resources = createFixtureResources(session.fixtureId, { sessionId: session.id, generation: session.generation, observedAt: now, source: 'docker' });
     const logs = [];
     for (const [index, service] of fixture.services.entries()) {
-      const container = await createWorkload({ session, service, image: service.image, appPort: service.appPort, network });
+      const container = await createWorkload({
+        session, service, image: service.image, appPort: service.appPort, network,
+        storage: service.storage ? { provider: storage.provider, target: service.storage } : null,
+      });
       let observed = await observe(container, service.appPort);
       if (service.state === 'running') {
         observed = await startAndObserve(container, service.appPort);
@@ -169,10 +179,12 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       logs.push(...await newLogs(container, service.serviceId));
       resources[index] = { ...resources[index], observed: { ...observed, source: 'docker', observedAt: new Date().toISOString() } };
     }
-    return { resources, logs, pipeline: createFixturePipeline(session.fixtureId, { now, source: null }) };
+    return { resources, logs, pipeline: createFixturePipeline(session.fixtureId, { now, source: null }), storage };
   }
 
-  async function replaceWorkload(session, resource, { appPort = resource.desired.appPort, image = resource.desired.image }, out) {
+  async function replaceWorkload(session, resource, {
+    appPort = resource.desired.appPort, image = resource.desired.image, storage = resource.desired.storage,
+  }, out) {
     const { container, info } = await ownedContainer({ sessionId: session.id, generation: session.generation, serviceId: resource.serviceId });
     const wasRunning = info.State.Running;
     if (wasRunning) {
@@ -182,10 +194,12 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
     await container.remove({ force: true });
     logCursors.delete(container.id);
     const network = resourceName(session.id, session.generation);
-    const replacement = await createWorkload({ session, service: resource, image, appPort, network });
-    out.emit('resource.configured', { resourceId: resource.id, appPort, image });
+    const workloadStorage = storage && session.storage ? { provider: session.storage.provider, target: storage } : null;
+    const replacement = await createWorkload({ session, service: resource, image, appPort, network, storage: workloadStorage });
+    out.emit('resource.configured', { resourceId: resource.id, appPort, image, ...(storage ? { storage } : {}) });
+    const storageEnv = storage ? ` STORAGE_NAMESPACE=${storage.namespace} STORAGE_ENDPOINT=${storage.endpoint}` : '';
     out.logs([{ serviceId: resource.serviceId, stream: 'system', level: 'info', at: new Date().toISOString(),
-      message: `Container ${resource.serviceId} recreated from ${image} with APP_PORT=${appPort}` }]);
+      message: `Container ${resource.serviceId} recreated from ${image} with APP_PORT=${appPort}${storageEnv}` }]);
     out.emit('resource.observed', { resourceId: resource.id, ...await observe(replacement, appPort) });
     return { replacement, wasRunning };
   }
@@ -223,6 +237,9 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
 
   async function execute({ session, operation, out }) {
     const { type, parameters } = operation;
+    if (STORAGE_OPERATIONS.includes(type)) {
+      return storageDriver.execute({ session, operation, out });
+    }
     const resource = parameters.serviceId ? session.resources.find((item) => item.serviceId === parameters.serviceId) : null;
     if (parameters.serviceId && !resource) {
       throw new DriverFailure('UNKNOWN_SERVICE', 'The service does not belong to this session.');
@@ -291,6 +308,53 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
           state = observed.state;
         }
         return { serviceId: resource.serviceId, appPort: parameters.appPort, changed: true, replaced: true, state };
+      }
+      case 'storage.configure': {
+        if (!resource.desired.storage) {
+          throw new DriverFailure('STORAGE_NOT_SUPPORTED', `${resource.serviceId} has no storage configuration.`);
+        }
+        const target = await storageDriver.validateTarget({ storage: session.storage, parameters, current: resource.desired.storage });
+        if (target.namespace === resource.desired.storage.namespace && target.endpoint === resource.desired.storage.endpoint) {
+          return { serviceId: resource.serviceId, ...target, changed: false, replaced: false };
+        }
+        const { replacement, wasRunning } = await replaceWorkload(session, resource, { storage: target }, out);
+        let state = 'created';
+        if (wasRunning) {
+          const observed = await startAndObserve(replacement, resource.desired.appPort);
+          out.logs(await newLogs(replacement, resource.serviceId, session.logCursors?.[resource.serviceId]));
+          out.emit('resource.observed', { resourceId: resource.id, ...observed });
+          state = observed.state;
+        }
+        return { serviceId: resource.serviceId, ...target, changed: true, replaced: true, state };
+      }
+      case 'storage.roundtrip.verify': {
+        if (!resource.desired.storage || !session.storage) {
+          throw new DriverFailure('STORAGE_NOT_SUPPORTED', `${resource.serviceId} has no storage check endpoint.`);
+        }
+        const port = resource.desired.expectedProbePort;
+        const { container, info } = await locate();
+        const response = info.State.Running ? await probe({ serviceId: resource.serviceId, kind: 'storage-check', port }) : null;
+        out.logs(await newLogs(container, resource.serviceId, session.logCursors?.[resource.serviceId]));
+        if (!response || response.statusCode === null) {
+          const reason = response?.error ?? `connect ECONNREFUSED ${resource.serviceId}:${port} (container ${info.State.Status})`;
+          throw new DriverFailure('WORKLOAD_UNREACHABLE', `GET http://${resource.serviceId}:${port}/storage-check failed: ${reason}`, { retryable: true });
+        }
+        const check = storageDriver.roundTripFrom(resource.serviceId, response);
+        if (check.provider !== session.storage.provider || check.namespace !== resource.desired.storage.namespace) {
+          throw new DriverFailure('WORKLOAD_RESPONSE_INVALID', 'The storage check reported a target that differs from the configured one.');
+        }
+        if (session.storage.namespaces.some((item) => item.name === check.namespace)) {
+          await storageDriver.observeCheckObject({ session, namespace: check.namespace, out });
+        }
+        out.emit('storage.roundtrip-completed', check, { source: 'probe' });
+        if (!check.ok) {
+          throw new DriverFailure('STORAGE_CHECK_FAILED',
+            `GET http://${resource.serviceId}:${port}/storage-check returned ${check.statusCode}: ${check.error}`, { retryable: true });
+        }
+        return {
+          serviceId: resource.serviceId, ok: true, statusCode: check.statusCode, namespace: check.namespace, key: check.key,
+          bytes: check.bytes, sha256: check.observedSha256, uri: getStorageProvider(session.storage.provider).uri(check.namespace, check.key),
+        };
       }
       case 'health.probe':
       case 'version.probe': {
@@ -401,18 +465,27 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       const appPort = Number(env.APP_PORT ?? service.appPort);
       getRelease(info.Config.Image);
       const observed = observationFrom(info, { appPort, stoppedByRequest: true });
+      // The storage target is read back from the container, like appPort.
+      const storageTarget = service.storage && env.STORAGE_NAMESPACE && env.STORAGE_ENDPOINT
+        ? { namespace: env.STORAGE_NAMESPACE, endpoint: env.STORAGE_ENDPOINT }
+        : null;
       resources.push({
         id: `${service.serviceId}-g${found.generation}`,
         sessionId,
         generation: found.generation,
         serviceId: service.serviceId,
         kind: 'container',
-        desired: { image: info.Config.Image, appPort, expectedProbePort: service.expectedProbePort },
+        desired: {
+          image: info.Config.Image, appPort, expectedProbePort: service.expectedProbePort,
+          ...(storageTarget ? { storage: storageTarget } : {}),
+        },
         observed: { ...observed, source: 'docker', observedAt: now },
       });
       logs.push(...(await newLogs(container, service.serviceId)).slice(-50));
     }
-    return { session, resources, logs };
+    // Storage is re-observed from the session emulator; nothing from before the restart is trusted.
+    const storage = fixture.storage ? await storageDriver.recoverState(fixture.storage.provider) : null;
+    return { session, resources, logs, storage };
   }
 
   /** Bounded CPU and memory samples; unavailable measurements are reported, not invented. */

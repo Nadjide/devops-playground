@@ -76,7 +76,7 @@ function Identity({ storage, profile }) {
   return (
     <dl className="cloud-identity" aria-label="Storage backend">
       <div><dt>Provider</dt><dd><Cloud aria-hidden="true" size={14} /> {profile.label}</dd></div>
-      <div><dt>Backend</dt><dd>{client.mode === 'local' ? `${profile.service} emulator` : client.capabilities.backend}</dd></div>
+      <div><dt>Backend</dt><dd>{client.mode === 'local' ? `${profile.emulator} emulator (local Docker)` : client.capabilities.backend}</dd></div>
       <div><dt>Endpoint</dt><dd className="mono">{storage.endpoint}</dd></div>
       <div><dt>Source</dt><dd><span className="source-pill">{sourceLabel(client.mode === 'local' ? 'emulator' : 'simulator')}</span></dd></div>
     </dl>

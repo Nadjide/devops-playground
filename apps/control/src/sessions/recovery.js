@@ -34,8 +34,8 @@ export function recoveredSnapshot({ recovered, nextId, now }) {
     probes: [],
     logs: { entries: [], dropped: 0, bytes: 0, nextSeq: 1 },
     pipeline: { ...emptyPipeline(), knownGood: baseline.knownGood, deployed },
-    // Local labs have no cloud storage until the emulator lots add it.
-    storage: null,
+    // Re-observed from the session emulator by the runner; earlier round trips are not restored.
+    storage: recovered.storage ?? null,
     lastEventSequence: 0,
     createdAt: now,
     updatedAt: now,
