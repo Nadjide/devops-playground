@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L07 in review (Phase A acceptance); merges delegated for L01-L17 |
+| Current delivery stage | Phase A merged; L08 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2746,8 +2746,8 @@ The ledger below describes the current verified execution state.
 | L04 | merged | feat/lot-04-terminal-and-logs | [PR #4](https://github.com/Nadjide/devops-playground/pull/4) | 175 domain tests, 29 workbench tests, 12 Playwright checks; [CI run 41834430821](https://github.com/Nadjide/devops-playground/actions/runs/41834430821); squash commit `55bf2eb` |
 | L05 | merged | feat/lot-05-guided-missions | [PR #5](https://github.com/Nadjide/devops-playground/pull/5) | 194 domain tests, 37 workbench tests, 16 Playwright checks; [CI run 41836409932](https://github.com/Nadjide/devops-playground/actions/runs/41836409932); squash commit `91b8501` |
 | L06 | merged | feat/lot-06-simulated-pipeline | [PR #6](https://github.com/Nadjide/devops-playground/pull/6) | 207 domain tests, 41 workbench tests, 18 Playwright checks; [CI run 41850217454](https://github.com/Nadjide/devops-playground/actions/runs/41850217454); squash commit `4bf3b54` |
-| L07 | pr-open | feat/lot-07-demo-recovery | Pending | 219 domain tests, 51 workbench tests, 24 Playwright demo checks, Phase A matrix in section 26.10 |
-| L08 | planned | Pending | Pending | Pending |
+| L07 | merged | feat/lot-07-demo-recovery | [PR #7](https://github.com/Nadjide/devops-playground/pull/7) | 219 domain tests, 51 workbench tests, 24 Playwright checks, Phase A matrix in section 26.10; [CI run 41851962026](https://github.com/Nadjide/devops-playground/actions/runs/41851962026); squash commit `9485b2a` |
+| L08 | pr-open | feat/lot-08-local-runner-foundations | Pending | 23 control tests, 13 runner tests, packaged Demo and Local stack checks on Docker Desktop |
 | L09 | planned | Pending | Pending | Pending |
 | L10 | planned | Pending | Pending | Pending |
 | L11 | planned | Pending | Pending | Pending |
@@ -2945,6 +2945,29 @@ production build with all non-origin and `/api` requests aborted.
 Fixed in this lot: the terminal no longer traps keyboard focus (Tab leaves
 xterm), CSS tooltip text no longer leaks into accessible names, and pending
 checkpoints are flushed on `pagehide` so a reload right after an action keeps it.
+
+### 26.11 L08 Local Verification
+
+Verified on 2026-11-04 on Windows with Node.js 22.18.0, Docker Desktop Linux
+Engine 29.7.2 (API 1.55), and Docker Compose 5.4.0.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings |
+| `npm test` | Passed, 3 original API tests |
+| `npm run test:playground` | Passed: 219 domain, 51 workbench, 23 control, 13 runner tests |
+| `docker compose -f compose.playground.yml [--profile local] config` | Passed for both profiles |
+| `npm run playground:demo` + `check-playground-stack.js demo` | 11 checks passed: no runner, no mounts, loopback binding, non-root read-only portal, Host/Origin/CSRF rejections |
+| `npm run playground:local` + `check-playground-stack.js local` | 14 checks passed: runner connected, Docker available, no runner port, 401 without token, 403 with browser Origin, runner unreachable from the portal network |
+| `npm run playground:down` | Stack removed; no owned lab resources remained |
+| Launcher guards | Occupied port and invalid `PLAYGROUND_PORT` fail with actionable messages |
+
+Decisions recorded here: the runner uses `dockerode` and the Engine API for
+every daemon interaction, including later image builds, so the runner image
+contains no Docker CLI; the launcher detects the socket group and passes it as
+`group_add` so the runner runs as the non-root `node` user; per-Dockerfile
+ignore files keep the standalone workload image unchanged. Workload mutation
+capabilities stay unavailable in Local mode until L09.
 
 ## 27. Decisions and Scope Change Control
 

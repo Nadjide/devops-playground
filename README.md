@@ -179,6 +179,22 @@ npm run test:playground    # domain and workbench unit tests
 npm run test:e2e:demo      # Playwright demo suite against the static build
 ```
 
+### Packaged playground
+
+The packaged portal runs through Docker Compose and binds to
+`http://127.0.0.1:3001` (set `PLAYGROUND_PORT` to change it).
+
+```bash
+npm run playground:demo     # portal only, browser simulation, no Docker socket
+npm run playground:local    # portal plus the internal runner for real local Docker
+npm run playground:status   # controller, runner, Docker, and owned lab resources
+npm run playground:down     # stop the stack and report owned leftovers
+```
+
+Local mode gives the runner access to the Docker socket, which controls the host
+daemon; use it only on your own machine. The runner has no published port and
+accepts only the controller's per-launch token.
+
 See the [implementation plan](DEVOPS_PLAYGROUND_MASTER_PLAN.md) for the roadmap,
 the [domain package](packages/lab-core/README.md) for its implemented API, and
 the [workbench](apps/web/README.md) for the frontend structure.

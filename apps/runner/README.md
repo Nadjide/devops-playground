@@ -1,0 +1,38 @@
+# Playground Runner
+
+`@devops-playground/runner` is the only service with access to the Docker
+daemon socket. It runs on the private `management` Compose network, publishes
+no host port, and accepts only authenticated requests from the controller.
+
+Docker socket access is equivalent to control of the host daemon. Resource
+labels and request validation are application safeguards, not a sandbox: the
+local mode is meant for a trusted owner operating their own Docker installation.
+
+## Authentication
+
+- The launcher generates a 256-bit token per launch and passes it to the
+  controller and runner through their process environment only.
+- Requests need `Authorization: Bearer <token>`; the comparison is timing safe.
+- Requests carrying a browser `Origin` or `Sec-Fetch-Site` header are refused.
+
+## Routes
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| GET | `/v1/health` | Runner process health |
+| GET | `/v1/docker` | Daemon version and API diagnostics, or a typed failure |
+
+Daemon failures map to `DOCKER_UNAVAILABLE`, `DOCKER_PERMISSION_DENIED`,
+`DOCKER_CONTEXT_UNSUPPORTED` (Windows containers), or `DOCKER_ERROR`, with
+actionable messages that never include secrets.
+
+## Docker Compatibility
+
+The runner uses `dockerode` against the Engine API negotiated by the daemon.
+Verified with Docker Engine 29.7.2 (API 1.55) on Docker Desktop for Windows and
+with the Ubuntu runner Engine in GitHub Actions. Image builds in later lots use
+the Engine API through `dockerode`, so the runner image needs no Docker CLI.
+
+```bash
+npm run test:runner
+```

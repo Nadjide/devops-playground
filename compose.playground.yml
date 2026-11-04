@@ -1,0 +1,66 @@
+# Interactive playground stack. Start it through the launcher:
+#   npm run playground:demo   (portal only, browser simulation)
+#   npm run playground:local  (portal and runner, real local Docker)
+name: devops-playground
+
+services:
+  control:
+    build:
+      context: .
+      dockerfile: infra/playground.Dockerfile
+    image: devops-playground/control:local
+    environment:
+      PLAYGROUND_MODE: ${PLAYGROUND_MODE:-demo}
+      PLAYGROUND_PORT: ${PLAYGROUND_PORT:-3001}
+      RUNNER_URL: http://runner:4000
+      RUNNER_TOKEN: ${PLAYGROUND_RUNNER_TOKEN:-}
+    ports:
+      - "127.0.0.1:${PLAYGROUND_PORT:-3001}:3001"
+    networks:
+      - portal
+      - management
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      runner:
+        condition: service_healthy
+        required: false
+
+  runner:
+    profiles:
+      - local
+    build:
+      context: .
+      dockerfile: infra/runner.Dockerfile
+    image: devops-playground/runner:local
+    environment:
+      RUNNER_TOKEN: ${PLAYGROUND_RUNNER_TOKEN:-}
+      PLAYGROUND_INSTALLATION_FILE: /var/lib/devops-playground/installation.json
+    # The socket grants control of the host daemon: only this service mounts it.
+    group_add:
+      - "${PLAYGROUND_DOCKER_GID:-0}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - installation:/var/lib/devops-playground
+    networks:
+      - management
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  portal: {}
+  management:
+    internal: true
+
+volumes:
+  installation: {}

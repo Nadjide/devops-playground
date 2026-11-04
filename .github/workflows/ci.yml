@@ -77,6 +77,45 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  playground-stack:
+    name: Playground stack
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Validate playground Compose configuration
+        run: |
+          docker compose -f compose.playground.yml config --quiet
+          docker compose -f compose.playground.yml --profile local config --quiet
+
+      - name: Start packaged Demo mode
+        run: npm run playground:demo
+
+      - name: Check Demo mode boundaries
+        run: node scripts/check-playground-stack.js demo
+
+      - name: Start packaged Local mode with the real Docker daemon
+        run: npm run playground:local
+
+      - name: Check Local mode boundaries
+        run: node scripts/check-playground-stack.js local
+
+      - name: Show playground logs on failure
+        if: failure()
+        run: docker compose -f compose.playground.yml --profile local logs --no-color
+
+      - name: Stop playground and report owned resources
+        if: always()
+        run: npm run playground:down
+
   docker:
     name: Docker
     runs-on: ubuntu-latest
