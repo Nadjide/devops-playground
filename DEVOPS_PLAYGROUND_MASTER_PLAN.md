@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L01-L16 merged; L17 Azurite and final Phase C validation in progress |
+| Current delivery stage | All planned implementations delivered through L17; current CI and merge state linked in the ledger |
 
 ## Reading Order
 
@@ -2731,6 +2731,7 @@ next lot covered by the active launch instruction.
 | `ready-for-review` | Acceptance satisfied and required checks green for the current PR head |
 | `merged` | Merge confirmed in the base branch and on GitHub |
 | `blocked` | Concrete external condition prevents the next required action |
+| Linked GitHub state | Live CI and merge state used for the final delivery handoff |
 
 Update only statuses supported by current evidence.
 When a PR records its own ready state, its eventual merged status can be
@@ -2760,7 +2761,7 @@ The ledger below describes the current verified execution state.
 | L14 | merged | feat/lot-14-simulated-s3-lab | [PR #14](https://github.com/Nadjide/devops-playground/pull/14) | Storage contract, session schema 2 and checkpoint migration, simulated S3, M04 and M05 for S3, Cloud panel, `aws s3` terminal subset; [CI run 41909130356](https://github.com/Nadjide/devops-playground/actions/runs/41909130356); squash commit `d3e1d3d` |
 | L15 | merged | feat/lot-15-simulated-azure-lab | [PR #15](https://github.com/Nadjide/devops-playground/pull/15) | Simulated Azure Blob provider, Azure M04 and M05, provider variants and confirmed switching, `az storage` terminal subset; [CI run 41911155862](https://github.com/Nadjide/devops-playground/actions/runs/41911155862); squash commit `2f27fed` |
 | L16 | merged | feat/lot-16-local-s3-lab | [PR #16](https://github.com/Nadjide/devops-playground/pull/16) | Pinned Moto 5.2.5, local S3 M04/M05 and cleanup; [CI run 41915834039](https://github.com/Nadjide/devops-playground/actions/runs/41915834039); squash commit `fa1ceee` |
-| L17 | in-progress | feat/lot-17-local-azure-lab | Pending publication | Azurite 3.37.0, explicit Blob SDK 12.33.0/API 2026-06-06, local M04/M05, cloud regression and browser acceptance |
+| L17 | [GitHub state](https://github.com/Nadjide/devops-playground/pull/17) | feat/lot-17-local-azure-lab | [PR #17](https://github.com/Nadjide/devops-playground/pull/17) | Azurite 3.37.0, Blob SDK 12.33.0/API 2026-06-06, actual M04/M05, 11 cloud integration tests, and provider browser acceptance |
 
 ### 26.3 Verification Record Format
 
@@ -3230,7 +3231,7 @@ ETag precondition to prevent a changed object from invalidating the size check.
 | Local browser acceptance | Core/S3 scenarios passed; corrected storage rerun passed both providers, including Azure desktop and mobile screenshots |
 | Production dependency audit | Zero vulnerabilities; full development audit retains 10 low/moderate advisories |
 | Credential-shaped secret scan | Passed, including the newly tracked adapter and integration tests |
-| GitHub checks and merge | Pending publication |
+| GitHub checks and merge | [PR #17 checks and merge record](https://github.com/Nadjide/devops-playground/pull/17) are authoritative for the published head |
 
 The local tests exercise the documented public Azurite development account,
 never an Azure subscription. Both storage providers use fixed emulator endpoints

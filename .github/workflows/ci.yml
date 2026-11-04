@@ -33,8 +33,14 @@ jobs:
       - name: Lint JavaScript
         run: npm run lint
 
+      - name: Scan tracked files for credential-shaped secrets
+        run: npm run scan:secrets
+
       - name: Run tests
         run: npm run test:ci
+
+      - name: Test the storage-capable workload
+        run: npm test --prefix labs/fixtures/storage-api
 
       - name: Test playground packages
         run: npm run test:playground
