@@ -164,6 +164,21 @@ The pipeline includes two jobs:
 - `test`: installs dependencies with `npm ci` and runs the Jest/Supertest test suite.
 - `docker`: validates the Docker Compose file, builds the Docker image, starts the Compose stack and checks `/health`.
 
+## Playground development
+
+The interactive workbench is being developed in independent feature lots.
+The shared domain workspace provides validated contracts and deterministic
+session state transitions.
+
+```bash
+npm run lint
+npm run test:core
+npm run test:playground
+```
+
+See the [implementation plan](DEVOPS_PLAYGROUND_MASTER_PLAN.md) for the roadmap
+and the [domain package](packages/lab-core/README.md) for its implemented API.
+
 ## Why this project exists
 
 This repository was created as a small but real DevOps showcase. It demonstrates how a simple application can be tested, containerized and validated through an automated CI pipeline.

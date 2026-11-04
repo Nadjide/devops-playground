@@ -1,0 +1,59 @@
+import { z } from 'zod';
+import {
+  generationSchema, revisionSchema, slugSchema,
+  sourceSchema, timestampSchema,
+} from './shared.js';
+import { operationTypeSchema } from './operations.js';
+
+const objectiveDefinitionSchema = z.strictObject({
+  id: slugSchema,
+  label: z.string().min(1).max(160),
+  predicateId: z.enum([
+    'evidence.logs-read', 'service.running', 'service.health-verified',
+    'service.expected-port', 'service.version-verified',
+  ]),
+  required: z.boolean(),
+});
+
+export const labManifestSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  id: slugSchema,
+  title: z.string().min(1).max(120),
+  description: z.string().min(1).max(1000),
+  difficulty: z.enum(['beginner', 'intermediate']),
+  estimatedMinutes: z.int().min(1).max(120),
+  supportedModes: z.array(z.enum(['demo', 'local'])).min(1).max(2)
+    .refine((items) => new Set(items).size === items.length, 'Duplicate execution mode.'),
+  fixtureId: slugSchema,
+  allowedOperations: z.array(operationTypeSchema).min(1).max(12)
+    .refine((items) => new Set(items).size === items.length, 'Duplicate operation type.'),
+  objectives: z.array(objectiveDefinitionSchema).min(1).max(20)
+    .refine((items) => new Set(items.map((item) => item.id)).size === items.length,
+      'Duplicate objective ID.'),
+});
+
+export const objectiveEvidenceSchema = z.strictObject({
+  eventId: z.string().min(1).max(512),
+  generation: generationSchema,
+  revision: revisionSchema,
+  source: sourceSchema,
+  observedAt: timestampSchema,
+  explanation: z.string().min(1).max(1000),
+});
+
+export const missionProgressSchema = z.strictObject({
+  id: slugSchema,
+  status: z.enum(['not-started', 'in-progress', 'completed']),
+  objectives: z.array(z.strictObject({
+    id: slugSchema,
+    status: z.enum(['pending', 'satisfied', 'invalidated']),
+    evidence: objectiveEvidenceSchema.nullable(),
+  })).max(20).refine((items) => new Set(items.map((item) => item.id)).size === items.length,
+    'Duplicate objective progress ID.'),
+}).superRefine((mission, context) => {
+  for (const objective of mission.objectives) {
+    if (objective.status === 'satisfied' && objective.evidence === null) {
+      context.addIssue({ code: 'custom', message: 'Satisfied objectives require evidence.' });
+    }
+  }
+});

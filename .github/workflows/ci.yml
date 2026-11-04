@@ -30,8 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint JavaScript
+        run: npm run lint
+
       - name: Run tests
         run: npm run test:ci
+
+      - name: Test playground domain contracts
+        run: npm run test:playground
 
   docker:
     name: Docker
