@@ -164,7 +164,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       logs.push(...await newLogs(container, service.serviceId));
       resources[index] = { ...resources[index], observed: { ...observed, source: 'docker', observedAt: new Date().toISOString() } };
     }
-    return { resources, logs, pipeline: createFixturePipeline(session.fixtureId, { now }) };
+    return { resources, logs, pipeline: createFixturePipeline(session.fixtureId, { now, source: null }) };
   }
 
   async function replaceWorkload(session, resource, { appPort = resource.desired.appPort, image = resource.desired.image }, out) {
@@ -183,6 +183,37 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       message: `Container ${resource.serviceId} recreated from ${image} with APP_PORT=${appPort}` }]);
     out.emit('resource.observed', { resourceId: resource.id, ...await observe(replacement, appPort) });
     return { replacement, wasRunning };
+  }
+
+  /** One probe of the fixed alias and expected port, recorded with probe provenance. */
+  async function probeOnce({ session, resource, kind, out }) {
+    const port = resource.desired.expectedProbePort;
+    const { info } = await ownedContainer({ sessionId: session.id, generation: session.generation, serviceId: resource.serviceId });
+    // A stopped container has no address on the session network; report the observed
+    // state immediately instead of waiting for name resolution to time out.
+    const result = info.State.Running
+      ? await probe({ serviceId: resource.serviceId, kind, port })
+      : {
+        serviceId: resource.serviceId, kind, port, path: kind === 'health' ? '/health' : '/version',
+        ok: false, statusCode: null, body: null, durationMs: 0,
+        error: `service ${resource.serviceId} is not running (container ${info.State.Status}); nothing accepts connections on ${resource.serviceId}:${port}`,
+      };
+    out.emit('probe.completed', result, { source: 'probe' });
+    return result;
+  }
+
+  /** Replace the workload with an approved image and start it; a crash is observed, not thrown. */
+  async function deploy({ session, resource, image, out }) {
+    const { replacement } = await replaceWorkload(session, resource, { image }, out);
+    const observed = await startAndObserve(replacement, resource.desired.appPort);
+    out.logs(await newLogs(replacement, resource.serviceId));
+    out.emit('resource.observed', { resourceId: resource.id, ...observed });
+    return { container: replacement, observed };
+  }
+
+  async function currentObservation({ session, resource }) {
+    const { container } = await ownedContainer({ sessionId: session.id, generation: session.generation, serviceId: resource.serviceId });
+    return { container, observed: await observe(container, resource.desired.appPort, { stoppedByRequest: false }) };
   }
 
   async function execute({ session, operation, out }) {
@@ -258,19 +289,7 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
       }
       case 'health.probe':
       case 'version.probe': {
-        const kind = type === 'health.probe' ? 'health' : 'version';
-        const port = resource.desired.expectedProbePort;
-        const { info } = await locate();
-        // A stopped container has no address on the session network; report the observed
-        // state immediately instead of waiting for name resolution to time out.
-        const result = info.State.Running
-          ? await probe({ serviceId: resource.serviceId, kind, port })
-          : {
-            serviceId: resource.serviceId, kind, port, path: kind === 'health' ? '/health' : '/version',
-            ok: false, statusCode: null, body: null, durationMs: 0,
-            error: `service ${resource.serviceId} is not running (container ${info.State.Status}); nothing accepts connections on ${resource.serviceId}:${port}`,
-          };
-        out.emit('probe.completed', result, { source: 'probe' });
+        const result = await probeOnce({ session, resource, kind: type === 'health.probe' ? 'health' : 'version', out });
         if (!result.ok) {
           throw new DriverFailure('PROBE_FAILED', `GET http://${resource.serviceId}:${result.port}${result.path} failed: ${result.error}`, { retryable: true });
         }
@@ -322,5 +341,5 @@ export function createLabDriver({ docker, installationId, selfContainerId = os.h
     return { removed, remaining };
   }
 
-  return { setup, execute, teardown, ownedContainer };
+  return { setup, execute, teardown, ownedContainer, probeOnce, deploy, currentObservation, newLogs };
 }

@@ -8,7 +8,7 @@ import { createSessionRouter } from './routes/sessions.js';
  * network, publishes no host port, and accepts only authenticated controller
  * requests with validated payloads.
  */
-export function createRunnerApp({ config, docker, driver = null, diagnose = diagnoseDocker, now = () => new Date().toISOString() }) {
+export function createRunnerApp({ config, docker, driver = null, pipeline = null, diagnose = diagnoseDocker, now = () => new Date().toISOString() }) {
   const app = express();
   const startedAt = Date.now();
   app.disable('x-powered-by');
@@ -30,7 +30,7 @@ export function createRunnerApp({ config, docker, driver = null, diagnose = diag
   });
 
   if (driver) {
-    app.use('/v1/sessions', createSessionRouter({ driver }));
+    app.use('/v1/sessions', createSessionRouter({ driver, pipeline }));
   }
 
   app.use((req, res) => {
