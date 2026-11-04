@@ -2,10 +2,14 @@ import stoppedContainer from '../../../../labs/stopped-container/manifest.json' 
 import wrongPort from '../../../../labs/wrong-port/manifest.json' with { type: 'json' };
 import brokenRelease from '../../../../labs/broken-release/manifest.json' with { type: 'json' };
 import freeExploration from '../../../../labs/free-exploration/manifest.json' with { type: 'json' };
+import storageProvision from '../../../../labs/storage-provision/manifest.json' with { type: 'json' };
+import storageConfig from '../../../../labs/storage-config/manifest.json' with { type: 'json' };
 import { labManifestSchema } from '../schemas/missions.js';
 import { getFixture } from '../fixtures/catalog.js';
 
-const manifests = [stoppedContainer, wrongPort, brokenRelease, freeExploration].map((manifest) => {
+const manifests = [
+  stoppedContainer, wrongPort, brokenRelease, storageProvision, storageConfig, freeExploration,
+].map((manifest) => {
   const lab = labManifestSchema.parse(manifest);
   for (const fixtureId of lab.fixtureOptions ?? [lab.fixtureId]) {
     getFixture(fixtureId);

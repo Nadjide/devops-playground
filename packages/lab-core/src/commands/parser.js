@@ -17,7 +17,16 @@ export const COMMAND_HELP = Object.freeze([
   { usage: 'curl http://<service>:<port>/version', description: 'Probe the version endpoint' },
   { usage: 'pipeline run', description: 'Run the delivery pipeline for the lab candidate' },
   { usage: 'pipeline rollback', description: 'Roll back to the last known-good release' },
+  { usage: 'curl http://<service>:<port>/storage-check', description: 'Run the service storage round trip (storage labs)', storage: true },
+  { usage: 'aws s3 ls [s3://<bucket>]', description: 'List buckets, or the objects of one bucket', provider: 'aws-s3' },
+  { usage: 'aws s3 mb s3://<bucket>', description: 'Create a bucket', provider: 'aws-s3' },
+  { usage: 'aws s3 cp s3://<bucket>/<key> -', description: 'Print an object (writes use the Cloud panel)', provider: 'aws-s3' },
+  { usage: 'aws s3 rm s3://<bucket>/<key>', description: 'Delete an object', provider: 'aws-s3' },
 ]);
+
+const S3_BUCKET_URI = /^s3:\/\/([A-Za-z0-9._-]{1,63})\/?$/;
+const S3_OBJECT_URI = /^s3:\/\/([A-Za-z0-9._-]{1,63})\/(.+)$/;
+const OBJECT_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 // Shell metacharacters have no meaning here; rejecting them keeps parsing literal.
 const FORBIDDEN = /[|&;<>()$`\\*?~{}[\]#!]/;
@@ -124,8 +133,13 @@ function parseCurl(args, context) {
   if (args.length !== 1) {
     return reject('Usage: curl http://<service>:<port>/health');
   }
-  const allowed = 'curl only reaches the lab service health and version endpoints.';
-  const match = /^http:\/\/([a-z][a-z0-9-]{0,62}):(\d{2,5})(\/health|\/version)$/.exec(args[0]);
+  const allowed = context.storageProvider
+    ? 'curl only reaches the lab service health, version, and storage-check endpoints.'
+    : 'curl only reaches the lab service health and version endpoints.';
+  const match = /^http:\/\/([a-z][a-z0-9-]{0,62}):(\d{2,5})(\/health|\/version|\/storage-check)$/.exec(args[0]);
+  if (match?.[3] === '/storage-check' && !context.storageProvider) {
+    return reject(`This lab has no storage-capable service. ${allowed}`);
+  }
   if (!match) {
     return reject(`Unsupported URL. ${allowed}`, `Try curl http://${context.services[0] ?? 'api'}:${context.probePorts[context.services[0]] ?? 3000}/health`);
   }
@@ -138,7 +152,62 @@ function parseCurl(args, context) {
     return reject(`Port ${port} is not an approved probe port for ${serviceId}. ${allowed}`,
       `The lab probes ${serviceId} on port ${context.probePorts[serviceId]}.`);
   }
-  return operation(path === '/health' ? 'health.probe' : 'version.probe', { serviceId }, `curl${path}`);
+  const type = { '/health': 'health.probe', '/version': 'version.probe', '/storage-check': 'storage.roundtrip.verify' }[path];
+  return operation(type, { serviceId }, `curl${path}`);
+}
+
+function parseObjectUri(uri, usage) {
+  const match = S3_OBJECT_URI.exec(uri ?? '');
+  if (!match) {
+    return reject(`Usage: ${usage}`);
+  }
+  if (!OBJECT_KEY.test(match[2]) || match[2].includes('..')) {
+    return reject('Object keys are 1 to 128 letters, digits, dots, hyphens, or underscores; paths and slashes are not supported.');
+  }
+  return { namespace: match[1], key: match[2] };
+}
+
+/** The AWS CLI subset the S3 labs support; the endpoint is always the session emulator. */
+function parseAws(args, context) {
+  if (context.storageProvider !== 'aws-s3') {
+    return reject('This lab has no AWS S3 storage.', 'Choose a storage mission to use aws s3 commands.');
+  }
+  const [service, subcommand, ...rest] = args;
+  const flag = rest.find((token) => token.startsWith('--'));
+  if (flag) {
+    return reject(`Options such as '${flag}' are not supported; the lab always uses its session emulator.`);
+  }
+  if (service !== 's3') {
+    return reject('Only aws s3 ls, mb, cp, and rm are supported.');
+  }
+  if (subcommand === 'ls') {
+    if (rest.length === 0) {
+      return operation('storage.namespace.list', {}, 'aws.s3.ls');
+    }
+    const bucket = rest.length === 1 && S3_BUCKET_URI.exec(rest[0]);
+    return bucket
+      ? operation('storage.object.list', { namespace: bucket[1] }, 'aws.s3.ls-objects')
+      : reject('Usage: aws s3 ls [s3://<bucket>]');
+  }
+  if (subcommand === 'mb') {
+    const bucket = rest.length === 1 && S3_BUCKET_URI.exec(rest[0]);
+    return bucket ? operation('storage.namespace.create', { namespace: bucket[1] }, 'aws.s3.mb') : reject('Usage: aws s3 mb s3://<bucket>');
+  }
+  if (subcommand === 'rb') {
+    return reject('Delete buckets from the Cloud panel, which asks for confirmation first.');
+  }
+  if (subcommand === 'cp') {
+    if (rest.length !== 2 || rest[1] !== '-') {
+      return reject('Only aws s3 cp s3://<bucket>/<key> - is supported. The workbench has no file system; write objects from the Cloud panel.');
+    }
+    const target = parseObjectUri(rest[0], 'aws s3 cp s3://<bucket>/<key> -');
+    return target.kind === 'error' ? target : operation('storage.object.get', target, 'aws.s3.cp');
+  }
+  if (subcommand === 'rm') {
+    const target = rest.length === 1 ? parseObjectUri(rest[0], 'aws s3 rm s3://<bucket>/<key>') : reject('Usage: aws s3 rm s3://<bucket>/<key>');
+    return target.kind === 'error' ? target : operation('storage.object.delete', target, 'aws.s3.rm');
+  }
+  return reject(subcommand ? `Unsupported aws s3 command '${subcommand.slice(0, 40)}'.` : 'Usage: aws s3 <ls|mb|cp|rm>');
 }
 
 /**
@@ -174,6 +243,8 @@ export function parseCommand(input, context) {
       return parseDocker(args, context);
     case 'curl':
       return parseCurl(args, context);
+    case 'aws':
+      return parseAws(args, context);
     case 'pipeline':
       if (args.length === 1 && args[0] === 'run') {
         if (!context.candidateReleaseId) {
@@ -193,6 +264,7 @@ export function parseCommand(input, context) {
 export function commandContext(session) {
   return {
     candidateReleaseId: getFixture(session.fixtureId).candidates?.[0],
+    storageProvider: session.storage?.provider ?? null,
     services: session.resources.map((resource) => resource.serviceId),
     probePorts: Object.fromEntries(session.resources.map((resource) => [resource.serviceId, resource.desired.expectedProbePort])),
   };

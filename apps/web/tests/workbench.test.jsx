@@ -83,7 +83,7 @@ describe('workbench shell', () => {
     await renderApp();
     const tabs = screen.getByRole('tablist', { name: 'Workbench panels' });
     expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent))
-      .toEqual(['Mission', 'Docker', 'Monitoring', 'Logs', 'Terminal', 'Pipeline', 'Events']);
+      .toEqual(['Mission', 'Docker', 'Cloud', 'Monitoring', 'Logs', 'Terminal', 'Pipeline', 'Events']);
     expect(within(tabs).getByRole('tab', { name: 'Mission' })).toHaveAttribute('aria-selected', 'true');
     await user.click(within(tabs).getByRole('tab', { name: 'Docker' }));
     expect(screen.getByRole('heading', { name: 'Docker containers' })).toBeInTheDocument();

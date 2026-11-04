@@ -24,7 +24,7 @@ if the workbench tries to reach a backend.
 | --- | --- |
 | `src/session/` | Session client boundary: snapshots, subscriptions, operation dispatch |
 | `src/components/` | Chrome, mission sidebar, accessible tabs, layout, shared controls |
-| `src/panels/` | Docker, Monitoring, Logs, Events, Terminal, and Pipeline panels |
+| `src/panels/` | Docker, Cloud, Monitoring, Logs, Events, Terminal, and Pipeline panels |
 | `src/styles/` | Design tokens and plain CSS for the workbench |
 
 Panels read the shared session snapshot through `useSessionState()` and request
@@ -43,6 +43,15 @@ truth.
 
 Unsupported operations reject with `CAPABILITY_UNAVAILABLE` and the UI renders
 them as unavailable controls with an explanation.
+
+## Cloud Panel
+
+Storage labs show the provider, backend, approved endpoint, and source of every
+result. The panel configures the service's bucket, runs the service storage
+check, creates and deletes buckets (deletion asks for confirmation), and
+writes, lists, reads, and deletes text objects. Labs without storage show an
+explanation instead. In the terminal, `aws s3 ls|mb|cp ... -|rm` and
+`curl http://api:3000/storage-check` map to the same operations.
 
 ## Terminal and Logs
 

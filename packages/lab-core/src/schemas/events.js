@@ -8,6 +8,10 @@ import { missionProgressSchema } from './missions.js';
 import { containerObservationSchema, resourceSchema } from './session.js';
 import { LIMITS, logLineSchema, probeObservationSchema } from './observations.js';
 import { pipelineSchema } from './pipeline.js';
+import {
+  namespaceObservationSchema, objectObservationSchema, roundTripObservationSchema, storageStateSchema,
+  workloadStorageSchema,
+} from './storage.js';
 
 const payloadSchemas = {
   'session.status-changed': z.strictObject({ status: sessionStatusSchema }),
@@ -15,6 +19,7 @@ const payloadSchemas = {
     resources: z.array(resourceSchema).max(3),
     mission: missionProgressSchema,
     pipeline: pipelineSchema,
+    storage: storageStateSchema.nullable(),
   }),
   'pipeline.updated': pipelineSchema,
   'resource.observed': containerObservationSchema.omit({ source: true, observedAt: true })
@@ -23,8 +28,12 @@ const payloadSchemas = {
     resourceId: identifierSchema,
     appPort: portSchema.optional(),
     image: z.string().min(1).max(256).optional(),
-  }).refine((change) => change.appPort !== undefined || change.image !== undefined,
-    'A configuration change needs an appPort or an image.'),
+    storage: workloadStorageSchema.optional(),
+  }).refine((change) => change.appPort !== undefined || change.image !== undefined || change.storage !== undefined,
+    'A configuration change needs an appPort, an image, or a storage target.'),
+  'storage.namespace-observed': namespaceObservationSchema,
+  'storage.object-observed': objectObservationSchema,
+  'storage.roundtrip-completed': roundTripObservationSchema,
   'mission.updated': missionProgressSchema,
   'probe.completed': probeObservationSchema,
   'log.appended': z.strictObject({ entries: z.array(logLineSchema).min(1).max(LIMITS.logBatch) }),

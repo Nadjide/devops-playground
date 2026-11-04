@@ -7,6 +7,10 @@ import { operationSchema } from './operations.js';
 import { missionProgressSchema } from './missions.js';
 import { LIMITS, logBufferSchema, probeRecordSchema } from './observations.js';
 import { pipelineSchema } from './pipeline.js';
+import { storageStateSchema, workloadStorageSchema } from './storage.js';
+
+/** Version 2 added cloud storage state; checkpoints migrate version 1 deliberately. */
+export const SESSION_SCHEMA_VERSION = 2;
 
 export const containerObservationSchema = z.strictObject({
   state: z.enum(['created', 'starting', 'running', 'stopped', 'exited', 'removing', 'removed', 'unknown']),
@@ -33,12 +37,14 @@ export const resourceSchema = z.strictObject({
     image: z.string().min(1).max(256),
     appPort: portSchema,
     expectedProbePort: portSchema,
+    // Storage-capable workloads only: the backend target the process is configured with.
+    storage: workloadStorageSchema.optional(),
   }),
   observed: containerObservationSchema,
 });
 
 export const sessionSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(SESSION_SCHEMA_VERSION),
   id: identifierSchema,
   mode: z.enum(['demo', 'local']),
   labId: slugSchema,
@@ -53,6 +59,7 @@ export const sessionSchema = z.strictObject({
   probes: z.array(probeRecordSchema).max(LIMITS.probeHistory),
   logs: logBufferSchema,
   pipeline: pipelineSchema,
+  storage: storageStateSchema.nullable(),
   lastEventSequence: revisionSchema,
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
@@ -100,6 +107,23 @@ export const sessionSchema = z.strictObject({
   }
   if (session.mode === 'demo' && session.resources.some((resource) => resource.observed.source !== 'simulator')) {
     context.addIssue({ code: 'custom', message: 'Demo resources require simulator provenance.' });
+  }
+  const storage = session.storage;
+  if (storage) {
+    const simulated = session.mode === 'demo';
+    const items = [...storage.namespaces, ...storage.objects, ...storage.roundTrips];
+    if (items.some((item) => (item.source === 'simulator') !== simulated) ||
+        storage.objects.some((object) => (object.content !== undefined) !== simulated)) {
+      context.addIssue({ code: 'custom', message: 'Storage provenance does not match the execution mode.' });
+    }
+    for (const check of storage.roundTrips) {
+      if (check.generation !== session.generation || check.revision > session.revision) {
+        context.addIssue({ code: 'custom', message: 'Round-trip evidence belongs to another generation or revision.' });
+      }
+    }
+  }
+  if (session.resources.some((resource) => resource.desired.storage) && !storage) {
+    context.addIssue({ code: 'custom', message: 'Storage-capable workloads require session storage.' });
   }
   if (session.mode === 'local' && session.resources.some((resource) => resource.observed.source === 'simulator')) {
     context.addIssue({ code: 'custom', message: 'Local resources cannot use simulator provenance.' });

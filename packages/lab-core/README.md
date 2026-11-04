@@ -39,6 +39,9 @@ Each test runner has an explicit discovery scope.
 | `DomainError` / `OperationFailure` | Typed request rejection and execution failure |
 | `labCatalog` / `getLabManifest` | Validated manifests loaded from `labs/` |
 | `getFixture` / `getRelease` | Approved fixtures and workload images |
+| `storageStateSchema` | Session storage: provider, approved endpoint, namespaces, object metadata, round-trip records |
+| `getStorageProvider` | Provider profile: terminology, naming rules, approved endpoint, provider errors |
+| `parseCheckpoint` / `serializeCheckpoint` | Versioned browser checkpoints with deliberate migrations |
 
 ## Deterministic Inputs
 
@@ -80,6 +83,35 @@ Executors implement `setup`, `execute`, and `teardown` and report every effect
 through the runtime context (`emit`, `emitLogs`, `delay`, `later`). The browser
 simulator reports `simulator` provenance; real drivers use `docker`, `probe`,
 or `emulator`.
+
+## Cloud Storage
+
+Storage labs share the session model. The session snapshot (schema version 2)
+carries `storage`, which is `null` for core labs. Operations are limited to the
+shared mission surface:
+
+| Operation | Effect |
+| --- | --- |
+| `storage.namespace.create` / `list` / `delete` | Bucket (S3) lifecycle; deletion needs lab ownership, and S3 refuses non-empty buckets |
+| `storage.object.put` / `list` / `get` / `delete` | UTF-8 text objects, at most 64 KiB, flat keys only |
+| `storage.configure` | Point the workload at a namespace; only the session emulator endpoint is approved |
+| `storage.roundtrip.verify` | The workload writes a payload through its own configuration and reads it back |
+
+Provider profiles keep their own vocabulary and errors (`NoSuchBucket`,
+`BucketNotEmpty`, `InvalidBucketName`). Namespace names, endpoints, and
+ownership are checked before any backend call. Sessions hold at most 8
+namespaces and 50 objects; the simulator keeps object text in the snapshot
+within a 128 KiB budget so checkpoints stay below 512 KiB, and reads return a
+4 KiB preview with the size and SHA-256 of the whole object.
+
+The objective predicates `storage.namespace-ready`, `storage.object-read-back`,
+`storage.workload-configured`, and `storage.roundtrip-verified` read the same
+snapshot. Only a workload round trip proves connectivity: listing or reading an
+object from the console never satisfies it.
+
+Checkpoint version 2 adds storage. Version 1 checkpoints migrate by adding an
+empty storage state; a version 1 session that already carries storage is
+rejected as invalid.
 
 ## Compatibility
 

@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { getStorageProvider } from '@devops-playground/lab-core';
 import { useSessionClient, useSessionState } from './SessionContext.jsx';
 
 export const operationLabels = {
@@ -12,13 +13,37 @@ export const operationLabels = {
   'version.probe': 'Version probe',
   'pipeline.run': 'Run pipeline',
   'pipeline.rollback': 'Roll back',
+  'storage.namespace.create': 'Create storage namespace',
+  'storage.namespace.list': 'List storage namespaces',
+  'storage.namespace.delete': 'Delete storage namespace',
+  'storage.object.put': 'Write object',
+  'storage.object.list': 'List objects',
+  'storage.object.get': 'Read object',
+  'storage.object.delete': 'Delete object',
+  'storage.configure': 'Configure storage of',
+  'storage.roundtrip.verify': 'Storage check of',
   'session.reset': 'Reset session',
   'session.end': 'End session',
 };
 
-export function describeOperation(operation) {
-  const label = operationLabels[operation.type] ?? operation.type;
-  const target = operation.parameters?.serviceId;
+/** Provider vocabulary: an S3 lab says bucket where a Blob lab says container. */
+const storageLabels = {
+  'storage.namespace.create': (profile) => `Create ${profile.namespaceTerm}`,
+  'storage.namespace.list': (profile) => `List ${profile.namespacesTerm}`,
+  'storage.namespace.delete': (profile) => `Delete ${profile.namespaceTerm}`,
+  'storage.object.put': (profile) => `Write ${profile.objectTerm}`,
+  'storage.object.list': (profile) => `List ${profile.objectsTerm}`,
+  'storage.object.get': (profile) => `Read ${profile.objectTerm}`,
+  'storage.object.delete': (profile) => `Delete ${profile.objectTerm}`,
+};
+
+export function describeOperation(operation, session = null) {
+  const provider = session?.storage?.provider;
+  const label = provider && storageLabels[operation.type]
+    ? storageLabels[operation.type](getStorageProvider(provider))
+    : operationLabels[operation.type] ?? operation.type;
+  const { serviceId, namespace, key } = operation.parameters ?? {};
+  const target = serviceId ?? (namespace && key ? `${namespace}/${key}` : namespace);
   return target ? `${label} ${target}` : label;
 }
 

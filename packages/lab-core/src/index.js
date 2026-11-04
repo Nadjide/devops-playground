@@ -2,7 +2,21 @@ export { operationTypeSchema, operationRequestSchema, operationSchema } from './
 export {
   labManifestSchema, missionCompletionSchema, missionProgressSchema, objectiveEvidenceSchema, PREDICATE_IDS,
 } from './schemas/missions.js';
-export { containerObservationSchema, resourceSchema, sessionSchema } from './schemas/session.js';
+export {
+  containerObservationSchema, resourceSchema, SESSION_SCHEMA_VERSION, sessionSchema,
+} from './schemas/session.js';
+export {
+  endpointSchema, namespaceNameSchema, objectContentSchema, objectKeySchema, roundTripObservationSchema,
+  STORAGE_LIMITS, STORAGE_PROVIDERS, storageStateSchema, utf8Bytes,
+} from './schemas/storage.js';
+export {
+  contentPreview, getStorageProvider, isApprovedEndpoint, sha256Hex, STORAGE_CHECK_KEY,
+  STORAGE_PROVIDER_PROFILES, storageCheckPayload,
+} from './storage/providers.js';
+export {
+  findNamespace, providerFailure, requireApprovedEndpoint, requireNamespace, requireNamespaceName,
+  requireOwnedNamespace, storageTargetLine,
+} from './storage/validate.js';
 export { eventSchema } from './schemas/events.js';
 export {
   LIMITS, logEntrySchema, logLineSchema, probeObservationSchema, probeRecordSchema,
@@ -18,10 +32,10 @@ export { availableLabs, labCatalog, getLabManifest } from './missions/catalog.js
 export { evaluateMission } from './missions/evaluate.js';
 export { FRESHNESS_MS, PREDICATES } from './missions/predicates.js';
 export {
-  fixtureCatalog, getFixture, createFixtureResources, createFixtureHistory, createFixturePipeline,
+  fixtureCatalog, getFixture, createFixtureResources, createFixtureHistory, createFixturePipeline, createFixtureStorage,
 } from './fixtures/catalog.js';
 export {
-  API_IMAGE, SERVICE_NAME, getRelease, getReleaseById, releaseCatalog, releaseRef, workloadLines,
+  API_IMAGE, SERVICE_NAME, STORAGE_API_IMAGE, getRelease, getReleaseById, releaseCatalog, releaseRef, workloadLines,
 } from './fixtures/releases.js';
 export { sanitizeLogMessage, sanitizeTerminalText } from './commands/sanitize.js';
 export {

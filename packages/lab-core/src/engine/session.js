@@ -1,5 +1,6 @@
 import { labManifestSchema } from '../schemas/missions.js';
-import { sessionSchema } from '../schemas/session.js';
+import { SESSION_SCHEMA_VERSION, sessionSchema } from '../schemas/session.js';
+import { STORAGE_LIMITS } from '../schemas/storage.js';
 import { eventSchema } from '../schemas/events.js';
 import { appendLogEntries, emptyLogBuffer, LIMITS } from '../schemas/observations.js';
 
@@ -26,6 +27,7 @@ export function createSession({
   resources = [],
   fixtureId,
   pipeline = emptyPipeline(),
+  storage = null,
   now = () => new Date().toISOString(),
   nextId = () => globalThis.crypto.randomUUID(),
 }) {
@@ -37,7 +39,7 @@ export function createSession({
   const timestamp = now();
 
   return sessionSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: SESSION_SCHEMA_VERSION,
     id: nextId(),
     mode,
     labId: lab.id,
@@ -52,6 +54,7 @@ export function createSession({
     probes: [],
     logs: emptyLogBuffer(),
     pipeline,
+    storage,
     lastEventSequence: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -155,6 +158,7 @@ function applyReset(state, event) {
     probes: [],
     logs: emptyLogBuffer(),
     pipeline: event.payload.pipeline,
+    storage: event.payload.storage,
   };
 }
 
@@ -194,10 +198,81 @@ function applyConfiguration(state, event) {
           ...item.desired,
           ...(event.payload.appPort === undefined ? {} : { appPort: event.payload.appPort }),
           ...(event.payload.image === undefined ? {} : { image: event.payload.image }),
+          ...(event.payload.storage === undefined ? {} : { storage: event.payload.storage }),
         },
       }
       : item),
   };
+}
+
+function requireStorage(state) {
+  requireState(state.storage, 'STORAGE_UNAVAILABLE', 'This session has no cloud storage.');
+  return state.storage;
+}
+
+function applyNamespace(state, event) {
+  const storage = requireStorage(state);
+  const { name, state: presence } = event.payload;
+  if (presence === 'absent') {
+    // A removed namespace takes its objects with it.
+    return {
+      ...state,
+      storage: {
+        ...storage,
+        namespaces: storage.namespaces.filter((item) => item.name !== name),
+        objects: storage.objects.filter((item) => item.namespace !== name),
+      },
+    };
+  }
+  const existing = storage.namespaces.find((item) => item.name === name);
+  requireState(existing || storage.namespaces.length < STORAGE_LIMITS.namespaces,
+    'STORAGE_LIMIT', 'The session namespace limit was reached.');
+  const record = {
+    name,
+    owned: event.payload.owned,
+    createdAt: event.payload.createdAt,
+    source: event.source,
+    observedAt: event.occurredAt,
+  };
+  return {
+    ...state,
+    storage: {
+      ...storage,
+      namespaces: existing
+        ? storage.namespaces.map((item) => (item.name === name ? record : item))
+        : [...storage.namespaces, record],
+    },
+  };
+}
+
+function applyObject(state, event) {
+  const storage = requireStorage(state);
+  const { namespace, key, state: presence, ...fields } = event.payload;
+  const others = storage.objects.filter((item) => item.namespace !== namespace || item.key !== key);
+  if (presence === 'absent') {
+    return { ...state, storage: { ...storage, objects: others } };
+  }
+  requireState(storage.namespaces.some((item) => item.name === namespace),
+    'UNKNOWN_NAMESPACE', 'The object belongs to a namespace this session has not observed.');
+  requireState(others.length < STORAGE_LIMITS.objects, 'STORAGE_LIMIT', 'The session object limit was reached.');
+  const record = { namespace, key, ...fields, source: event.source, observedAt: event.occurredAt };
+  return { ...state, storage: { ...storage, objects: [...others, record] } };
+}
+
+function applyRoundTrip(state, event) {
+  const storage = requireStorage(state);
+  requireState(state.resources.some((resource) => resource.serviceId === event.payload.serviceId),
+    'UNKNOWN_RESOURCE', 'The checked service does not belong to this session.');
+  const record = {
+    ...event.payload,
+    eventId: event.id,
+    operationId: event.operationId,
+    generation: event.generation,
+    revision: event.revision,
+    source: event.source,
+    observedAt: event.occurredAt,
+  };
+  return { ...state, storage: { ...storage, roundTrips: [...storage.roundTrips, record].slice(-STORAGE_LIMITS.roundTrips) } };
 }
 
 function applyMission(state, event) {
@@ -255,6 +330,15 @@ function applyEvent(state, event) {
   }
   if (event.type === 'mission.updated') {
     return applyMission(state, event);
+  }
+  if (event.type === 'storage.namespace-observed') {
+    return applyNamespace(state, event);
+  }
+  if (event.type === 'storage.object-observed') {
+    return applyObject(state, event);
+  }
+  if (event.type === 'storage.roundtrip-completed') {
+    return applyRoundTrip(state, event);
   }
   if (event.type === 'pipeline.updated') {
     return { ...state, pipeline: event.payload };

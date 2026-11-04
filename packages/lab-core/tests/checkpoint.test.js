@@ -28,13 +28,14 @@ describe('checkpoint serialization', () => {
     expect(saved).toMatchObject({ ok: true });
     expect(saved.bytes).toBeLessThanOrEqual(MAX_CHECKPOINT_BYTES);
     const parsed = parseCheckpoint(saved.text);
-    expect(parsed).toMatchObject({ ok: true, checkpoint: { checkpointVersion: 1, savedAt: '2026-11-04T10:05:00.000Z' } });
+    expect(parsed).toMatchObject({ ok: true, checkpoint: { checkpointVersion: 2, savedAt: '2026-11-04T10:05:00.000Z' }, migratedFrom: null });
     expect(parsed.checkpoint.session).toEqual(valid());
   });
 
   it.each([
     [null, 'empty'],
     ['{not json', 'malformed'],
+    [JSON.stringify({ checkpointVersion: 3, session: { schemaVersion: 2 } }), 'incompatible'],
     [JSON.stringify({ checkpointVersion: 2, session: { schemaVersion: 1 } }), 'incompatible'],
     [JSON.stringify({ checkpointVersion: 1, session: { schemaVersion: 2 } }), 'incompatible'],
     [JSON.stringify({ checkpointVersion: 1, savedAt: '2026-11-04T10:00:00.000Z', session: { schemaVersion: 1, id: 'x' } }), 'invalid'],
@@ -47,8 +48,25 @@ describe('checkpoint serialization', () => {
     const { valid } = await startRuntime();
     const session = valid();
     const tampered = { ...session, resources: [{ ...session.resources[0], observed: { ...session.resources[0].observed, source: 'docker' } }] };
-    const text = JSON.stringify({ checkpointVersion: 1, savedAt: session.updatedAt, session: tampered });
+    const text = JSON.stringify({ checkpointVersion: 2, savedAt: session.updatedAt, session: tampered });
     expect(parseCheckpoint(text)).toMatchObject({ ok: false, reason: 'invalid' });
+  });
+
+  it('migrates a version 1 checkpoint from before cloud storage', async () => {
+    const { run, valid } = await startRuntime();
+    await run('container.logs', { serviceId: 'api', tail: 50 });
+    const { storage, ...legacy } = { ...valid(), schemaVersion: 1 };
+    expect(storage).toBeNull();
+    const parsed = parseCheckpoint(JSON.stringify({ checkpointVersion: 1, savedAt: legacy.updatedAt, session: legacy }));
+    expect(parsed).toMatchObject({ ok: true, migratedFrom: 1, checkpoint: { checkpointVersion: 2 } });
+    expect(parsed.checkpoint.session).toEqual(valid());
+  });
+
+  it('refuses version 1 checkpoints that already carry storage state', async () => {
+    const { valid } = await startRuntime();
+    const legacy = { ...valid(), schemaVersion: 1, storage: { provider: 'aws-s3' } };
+    const parsed = parseCheckpoint(JSON.stringify({ checkpointVersion: 1, savedAt: legacy.updatedAt, session: legacy }));
+    expect(parsed).toMatchObject({ ok: false, reason: 'invalid' });
   });
 });
 

@@ -1,5 +1,5 @@
 import {
-  createFixturePipeline, emptyPipeline, freshMission, getLabManifest, getRelease, sessionSchema,
+  createFixturePipeline, emptyPipeline, freshMission, getLabManifest, getRelease, SESSION_SCHEMA_VERSION, sessionSchema,
 } from '@devops-playground/lab-core';
 
 /**
@@ -19,7 +19,7 @@ export function recoveredSnapshot({ recovered, nextId, now }) {
     deployed = { releaseId: release.id, image: release.image, version: release.version, status: 'unverified' };
   }
   return sessionSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: SESSION_SCHEMA_VERSION,
     id: session.id,
     mode: 'local',
     labId: lab.id,
@@ -34,6 +34,8 @@ export function recoveredSnapshot({ recovered, nextId, now }) {
     probes: [],
     logs: { entries: [], dropped: 0, bytes: 0, nextSeq: 1 },
     pipeline: { ...emptyPipeline(), knownGood: baseline.knownGood, deployed },
+    // Local labs have no cloud storage until the emulator lots add it.
+    storage: null,
     lastEventSequence: 0,
     createdAt: now,
     updatedAt: now,

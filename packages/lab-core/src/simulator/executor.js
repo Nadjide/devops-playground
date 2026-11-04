@@ -1,6 +1,8 @@
 import {
-  createFixtureHistory, createFixturePipeline, createFixtureResources, getFixture,
+  createFixtureHistory, createFixturePipeline, createFixtureResources, createFixtureStorage, getFixture,
 } from '../fixtures/catalog.js';
+import { storageTargetLine } from '../storage/validate.js';
+import { createStorageHandlers } from './storage.js';
 import { getRelease, getReleaseById, releaseRef, SERVICE_NAME, workloadLines } from '../fixtures/releases.js';
 import { AbortedError, OperationFailure } from '../engine/errors.js';
 import { createPipelineRecorder, createRunRecord } from '../pipeline/recorder.js';
@@ -18,17 +20,26 @@ export const SIMULATED_TIMINGS = Object.freeze({
   build: 1500,
   verifyInterval: 1000,
   verifyAttempts: 4,
+  storage: 150,
 });
 
 export const SIMULATED_OPERATIONS = Object.freeze([
   'container.start', 'container.stop', 'container.restart', 'container.inspect', 'container.logs',
   'service.configure', 'health.probe', 'version.probe',
   'pipeline.run', 'pipeline.rollback', 'pipeline.cancel',
+  'storage.namespace.create', 'storage.namespace.list', 'storage.namespace.delete',
+  'storage.object.put', 'storage.object.list', 'storage.object.get', 'storage.object.delete',
+  'storage.configure', 'storage.roundtrip.verify',
   'session.reset', 'session.end',
 ]);
 
 function resourceFor(ctx, serviceId) {
   return ctx.session().resources.find((resource) => resource.serviceId === serviceId);
+}
+
+function storageLine(ctx, resource) {
+  const { storage } = ctx.session();
+  return storage && resource.desired.storage ? storageTargetLine(storage, resource.desired.storage) : null;
 }
 
 function lines(ctx, serviceId, entries) {
@@ -69,7 +80,7 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS, faults = 
       throw new OperationFailure('CONTAINER_EXITED', `${serviceId} exited with code 1 during startup.`);
     }
 
-    lines(ctx, serviceId, workloadLines.startup(release, resource.desired.appPort));
+    lines(ctx, serviceId, workloadLines.startup(release, resource.desired.appPort, storageLine(ctx, resource)));
     ctx.emit('resource.observed', { resourceId: resource.id, state: 'running', health: 'starting', startedAt });
     ctx.later(timings.healthcheck, ({ session, emit }) => {
       const current = session().resources.find((item) => item.id === resource.id);
@@ -103,7 +114,7 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS, faults = 
     const updated = resourceFor(ctx, resource.serviceId);
     lines(ctx, resource.serviceId, [{
       stream: 'system', level: 'info',
-      message: `Container ${resource.serviceId} recreated from ${updated.desired.image} with APP_PORT=${updated.desired.appPort}`,
+      message: `Container ${resource.serviceId} recreated from ${updated.desired.image} with APP_PORT=${updated.desired.appPort}${updated.desired.storage ? ` STORAGE_NAMESPACE=${updated.desired.storage.namespace} STORAGE_ENDPOINT=${updated.desired.storage.endpoint}` : ''}`,
     }]);
     ctx.emit('resource.observed', {
       resourceId: resource.id, state: 'created', health: 'unknown', exitCode: null, startedAt: null,
@@ -315,6 +326,7 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS, faults = 
   }
 
   const handlers = {
+    ...createStorageHandlers({ timings, replace }),
     'container.start': start,
     'container.stop': stop,
     async 'container.restart'(operation, ctx) {
@@ -338,6 +350,7 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS, faults = 
         resources: createFixtureResources(fixtureId, { sessionId, generation, observedAt: now, source: 'simulator' }),
         logs: createFixtureHistory(fixtureId, { now }),
         pipeline: createFixturePipeline(fixtureId, { now }),
+        storage: await createFixtureStorage(fixtureId, { now, source: 'simulator', withContent: true }),
       };
     },
     async teardown({ session }) {

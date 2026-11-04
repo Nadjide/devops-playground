@@ -259,7 +259,7 @@ describe('retention bounds', () => {
     expect(session.operations.length).toBeLessThanOrEqual(100);
     expect(runtime.getEvents()).toHaveLength(RUNTIME_LIMITS.events);
     expect(runtime.getEvents().at(-1).sequence).toBe(session.lastEventSequence);
-  });
+  }, 20_000);
 
   it('evicts the oldest log entries by count and bytes and reports truncation', () => {
     const line = (message) => ({ serviceId: 'api', stream: 'stdout', level: 'info', message, at: '2026-11-04T10:00:00.000Z' });

@@ -1,9 +1,26 @@
 import { z } from 'zod';
-import { sessionSchema } from '../schemas/session.js';
+import { SESSION_SCHEMA_VERSION, sessionSchema } from '../schemas/session.js';
 import { timestampSchema } from '../schemas/shared.js';
 
-export const CHECKPOINT_VERSION = 1;
+export const CHECKPOINT_VERSION = 2;
 export const MAX_CHECKPOINT_BYTES = 512 * 1024;
+
+/**
+ * Deliberate upgrades of older checkpoints. Each step names the session
+ * schema it accepts; the result is still validated against the current schema.
+ */
+const MIGRATIONS = Object.freeze({
+  // Version 1 predates cloud storage: core sessions gain an explicit empty storage state.
+  1: Object.freeze({
+    sessionSchemaVersion: 1,
+    migrate: (data) => ({
+      checkpointVersion: 2,
+      savedAt: data.savedAt,
+      // A version 1 session cannot hold storage; a stray field stays and fails validation.
+      session: { storage: null, ...data.session, schemaVersion: 2 },
+    }),
+  }),
+});
 
 const checkpointSchema = z.strictObject({
   checkpointVersion: z.literal(CHECKPOINT_VERSION),
@@ -43,18 +60,20 @@ export function parseCheckpoint(text) {
   } catch {
     return { ok: false, reason: 'malformed', message: 'Saved progress is not valid JSON.' };
   }
-  if (data?.checkpointVersion !== CHECKPOINT_VERSION || data?.session?.schemaVersion !== 1) {
+  const migration = MIGRATIONS[data?.checkpointVersion];
+  const current = data?.checkpointVersion === CHECKPOINT_VERSION && data?.session?.schemaVersion === SESSION_SCHEMA_VERSION;
+  if (!current && !(migration && data?.session?.schemaVersion === migration.sessionSchemaVersion)) {
     return {
       ok: false,
       reason: 'incompatible',
       message: `Saved progress uses checkpoint version ${data?.checkpointVersion ?? 'unknown'}, but this build reads version ${CHECKPOINT_VERSION}.`,
     };
   }
-  const parsed = checkpointSchema.safeParse(data);
+  const parsed = checkpointSchema.safeParse(current ? data : migration.migrate(data));
   if (!parsed.success || parsed.data.session.mode !== 'demo') {
     return { ok: false, reason: 'invalid', message: 'Saved progress failed validation.' };
   }
-  return { ok: true, checkpoint: parsed.data };
+  return { ok: true, checkpoint: parsed.data, migratedFrom: current ? null : data.checkpointVersion };
 }
 
 /**

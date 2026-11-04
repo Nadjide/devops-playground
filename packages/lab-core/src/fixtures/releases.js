@@ -3,6 +3,8 @@
  * both modes; the local runner builds them from `labs/fixtures`.
  */
 export const API_IMAGE = 'devops-playground-lab/api';
+/** Storage-capable variant of the API used by the cloud storage labs. */
+export const STORAGE_API_IMAGE = 'devops-playground-lab/storage-api';
 export const SERVICE_NAME = 'devops-playground';
 
 const definitions = [
@@ -11,10 +13,14 @@ const definitions = [
   { id: 'api-1-1-0', version: '1.1.0', startup: 'crash', summary: 'Candidate that requires missing configuration at startup' },
 ];
 
-export const releaseCatalog = Object.freeze(definitions.map((release) => Object.freeze({
-  ...release,
-  image: `${API_IMAGE}:${release.version}`,
-})));
+const storageDefinitions = [
+  { id: 'storage-api-1-0-0', version: '1.0.0', startup: 'ok', summary: 'API with a storage round-trip check' },
+];
+
+export const releaseCatalog = Object.freeze([
+  ...definitions.map((release) => ({ ...release, image: `${API_IMAGE}:${release.version}` })),
+  ...storageDefinitions.map((release) => ({ ...release, image: `${STORAGE_API_IMAGE}:${release.version}` })),
+].map((release) => Object.freeze(release)));
 
 export function getRelease(image) {
   const release = releaseCatalog.find((item) => item.image === image);
@@ -38,15 +44,19 @@ export function releaseRef(release) {
 
 /** Log lines printed by the fixture workload; kept identical to labs/fixtures/api. */
 export const workloadLines = {
-  startup: (release, appPort) => [
+  startup: (release, appPort, storage = null) => [
     { stream: 'stdout', level: 'info', message: `> ${SERVICE_NAME}@${release.version} start` },
     { stream: 'stdout', level: 'info', message: `Configuration loaded: APP_PORT=${appPort}` },
+    ...(storage ? [{ stream: 'stdout', level: 'info', message: `Storage target: ${storage.provider} ${storage.term} ${storage.namespace} at ${storage.endpoint}` }] : []),
     { stream: 'stdout', level: 'info', message: `DevOps Playground API ${release.version} listening on port ${appPort}` },
   ],
   shutdown: () => [
     { stream: 'stdout', level: 'info', message: 'Received SIGTERM, closing HTTP server' },
     { stream: 'stdout', level: 'info', message: 'HTTP server closed, exiting with code 0' },
   ],
+  storageCheck: ({ ok, uri, sha256, error }) => (ok
+    ? [{ stream: 'stdout', level: 'info', message: `Storage check passed: wrote and read back ${uri} (sha256 ${sha256.slice(0, 12)})` }]
+    : [{ stream: 'stderr', level: 'error', message: `Storage check failed for ${uri}: ${error}` }]),
   crash: (release) => [
     { stream: 'stdout', level: 'info', message: `> ${SERVICE_NAME}@${release.version} start` },
     { stream: 'stderr', level: 'error', message: `Error: FEATURE_FLAGS_URL is required by release ${release.version} but is not configured` },
