@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L01 domain foundations in progress |
+| Current delivery stage | L01 ready for owner review |
 
 ## Reading Order
 
@@ -2725,8 +2725,8 @@ The ledger below describes the current verified execution state.
 
 | Lot | Status | Actual branch | PR | Verification evidence |
 | --- | --- | --- | --- | --- |
-| L00 | accepted | Included with L01 | Pending L01 publication | Document consistency checks and owner launch |
-| L01 | in-progress | feat/lot-01-domain-foundations | Pending publication | 91 domain tests, 3 API tests, lint, fresh install, Docker and Compose passed |
+| L00 | accepted | Included with L01 | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | Document consistency checks and owner launch |
+| L01 | ready-for-review | feat/lot-01-domain-foundations | [PR #1](https://github.com/Nadjide/devops-playground/pull/1) | 91 domain tests, 3 API tests, lint, fresh install, Docker, Compose, and GitHub CI passed |
 | L02 | planned | Pending | Pending | Pending |
 | L03 | planned | Pending | Pending | Pending |
 | L04 | planned | Pending | Pending | Pending |
@@ -2793,7 +2793,15 @@ The shared package uses the currently verified Vitest 5 and its required Vite
 peer dependency. ESLint 10 provides the flat lint configuration. These tooling
 choices preserve the existing workload's Jest and CommonJS contracts.
 
-PR and GitHub check evidence will be linked after publication.
+The implementation is published in [PR #1](https://github.com/Nadjide/devops-playground/pull/1).
+The `Test` and `Docker` jobs passed for implementation commit
+`25249a7df644d04b060b5501c858abf990816a22` in
+[CI run 41818310689](https://github.com/Nadjide/devops-playground/actions/runs/41818310689).
+Documentation follow-up commits require checks for their current PR head before
+the final handoff. The PR's live checks show the latest verification state.
+
+Commits use the configured Nadjide identity and contain no AI co-author trailers.
+The owner controls merge authorization. L02 becomes eligible after L01 merges.
 
 ## 27. Decisions and Scope Change Control
 
