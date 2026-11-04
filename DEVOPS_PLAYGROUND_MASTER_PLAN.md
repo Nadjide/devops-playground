@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | Phases A and B merged; L14 in review; merges delegated for L01-L17 |
+| Current delivery stage | Phases A and B merged; L14 merged; L15 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2757,8 +2757,8 @@ The ledger below describes the current verified execution state.
 | L11 | merged | feat/lot-11-local-recovery | [PR #11](https://github.com/Nadjide/devops-playground/pull/11) | Controller crash recovery and cleanup, runner interruption, concurrent reset, scoped launcher cleanup, 10-cycle stress on real Docker; [CI run 41899879671](https://github.com/Nadjide/devops-playground/actions/runs/41899879671); squash commit `d80cae8` |
 | L12 | merged | feat/lot-12-end-to-end-verification | [PR #12](https://github.com/Nadjide/devops-playground/pull/12) | Complete demo and local browser matrix, local security regression suite, CI summaries; [CI run 41901649495](https://github.com/Nadjide/devops-playground/actions/runs/41901649495); squash commit `e4eaca2` |
 | L13 | merged | feat/lot-13-core-release-readiness | [PR #13](https://github.com/Nadjide/devops-playground/pull/13) | README, screenshots, `verify:playground` acceptance report from a clean clone, secret scan, per-session terminal transcript; [CI run 41906515871](https://github.com/Nadjide/devops-playground/actions/runs/41906515871); squash commit `769f3ad` |
-| L14 | pr-open | feat/lot-14-simulated-s3-lab | Pending | Storage contract, session schema 2 and checkpoint migration, simulated S3, M04 and M05 for S3, Cloud panel, `aws s3` terminal subset |
-| L15 | planned | Pending | Pending | Pending |
+| L14 | merged | feat/lot-14-simulated-s3-lab | [PR #14](https://github.com/Nadjide/devops-playground/pull/14) | Storage contract, session schema 2 and checkpoint migration, simulated S3, M04 and M05 for S3, Cloud panel, `aws s3` terminal subset; [CI run 41909130356](https://github.com/Nadjide/devops-playground/actions/runs/41909130356); squash commit `d3e1d3d` |
+| L15 | pr-open | feat/lot-15-simulated-azure-lab | Pending | Simulated Azure Blob provider, Azure M04 and M05, provider variants and confirmed switching, `az storage` terminal subset |
 | L16 | planned | Pending | Pending | Pending |
 | L17 | planned | Pending | Pending | Pending |
 
@@ -3148,6 +3148,35 @@ Contract decisions:
   not accepted as the repair.
 - Simulated object text stays within a 128 KiB session budget and reads return a
   4 KiB preview, keeping checkpoints under 512 KiB.
+
+### 26.18 L15 Simulated Azure Blob Verification
+
+Verified on 2026-11-04 on Windows in the browser demo.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run test:core` | 285 passed, including Azure container naming, Azure delete semantics, both Azure missions, variant groups, cross-provider isolation and restore refusal, and the `az storage` grammar |
+| `npm run test:web` | 55 passed |
+| `npm run test:e2e:demo` | 31 passed, including Azure M04 through the terminal and the Cloud panel, Azure M05, and a provider switch that is cancelled once, then confirmed, and survives a reload |
+
+Provider differences kept visible:
+
+| Behavior | AWS S3 | Azure Blob |
+| --- | --- | --- |
+| Namespace and object terms | bucket, object | container, blob |
+| Naming | 3-63 characters, lowercase, digits, dots, hyphens; no IP form; reserved prefixes and suffixes | 3-63 characters, lowercase, digits, single hyphens; no dots |
+| Approved endpoint | `http://storage:5000` | `http://storage:10000/devstoreaccount1` |
+| Delete a namespace that holds data | `BucketNotEmpty` | Deletes the container and its blobs |
+| Delete a missing object | Succeeds | `BlobNotFound` |
+| Missing namespace | `NoSuchBucket` | `ContainerNotFound` |
+
+Lab manifests declare an optional `variant` (`group`, `provider`) and the
+catalog refuses a variant whose fixture uses another provider. The Cloud panel
+offers the other provider of the same mission only through the confirmed
+"start a new session" path, so resources, objective evidence, and checkpoints
+never cross providers; restoring an S3 checkpoint into the Azure variant is
+refused with `CHECKPOINT_MISMATCH`.
 
 ## 27. Decisions and Scope Change Control
 
