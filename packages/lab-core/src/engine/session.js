@@ -25,6 +25,7 @@ export function createSession({
   mode = 'demo',
   resources = [],
   fixtureId,
+  pipeline = emptyPipeline(),
   now = () => new Date().toISOString(),
   nextId = () => globalThis.crypto.randomUUID(),
 }) {
@@ -50,11 +51,15 @@ export function createSession({
     mission: freshMission(lab),
     probes: [],
     logs: emptyLogBuffer(),
-    pipeline: { knownGood: null, deployed: null, runs: [] },
+    pipeline,
     lastEventSequence: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
+}
+
+export function emptyPipeline() {
+  return { knownGood: null, deployed: null, runs: [] };
 }
 
 export function freshMission(lab) {
@@ -149,6 +154,7 @@ function applyReset(state, event) {
     mission,
     probes: [],
     logs: emptyLogBuffer(),
+    pipeline: event.payload.pipeline,
   };
 }
 
@@ -182,7 +188,14 @@ function applyConfiguration(state, event) {
   return {
     ...state,
     resources: state.resources.map((item) => item.id === resource.id
-      ? { ...item, desired: { ...item.desired, appPort: event.payload.appPort } }
+      ? {
+        ...item,
+        desired: {
+          ...item.desired,
+          ...(event.payload.appPort === undefined ? {} : { appPort: event.payload.appPort }),
+          ...(event.payload.image === undefined ? {} : { image: event.payload.image }),
+        },
+      }
       : item),
   };
 }
@@ -242,6 +255,9 @@ function applyEvent(state, event) {
   }
   if (event.type === 'mission.updated') {
     return applyMission(state, event);
+  }
+  if (event.type === 'pipeline.updated') {
+    return { ...state, pipeline: event.payload };
   }
   return applyResourceObservation(state, event);
 }

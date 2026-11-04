@@ -101,7 +101,7 @@ describe('pure event reduction', () => {
 
   it('requires explicit reset preparation and clears previous generation data', () => {
     const state = makeSession();
-    const resetPayload = { resources: [makeResource({ generation: 2 })], mission: state.mission };
+    const resetPayload = { resources: [makeResource({ generation: 2 })], mission: state.mission, pipeline: state.pipeline };
     expectStateError(() => reduceSession(state, makeEvent(state, {
       type: 'session.reset', generation: 2, payload: resetPayload,
     })), 'RESET_NOT_STARTED');
@@ -119,7 +119,7 @@ describe('pure event reduction', () => {
 
   it('rejects reset with active operations or fabricated mission objectives', () => {
     const state = makeSession({ status: 'resetting', operations: [makeOperation()] });
-    const payload = { resources: [], mission: state.mission };
+    const payload = { resources: [], mission: state.mission, pipeline: state.pipeline };
     expectStateError(() => reduceSession(state, makeEvent(state, {
       type: 'session.reset', generation: 2, payload,
     })), 'OPERATIONS_ACTIVE');
@@ -127,7 +127,7 @@ describe('pure event reduction', () => {
     const clean = makeSession({ status: 'resetting' });
     expectStateError(() => reduceSession(clean, makeEvent(clean, {
       type: 'session.reset', generation: 2,
-      payload: { resources: [], mission: { ...clean.mission, objectives: [] } },
+      payload: { resources: [], mission: { ...clean.mission, objectives: [] }, pipeline: clean.pipeline },
     })), 'INVALID_RESET_MISSION');
   });
 });

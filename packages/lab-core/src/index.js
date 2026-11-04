@@ -8,7 +8,7 @@ export {
   LIMITS, logEntrySchema, logLineSchema, probeObservationSchema, probeRecordSchema,
 } from './schemas/observations.js';
 export {
-  createSession, freshMission, reduceSession, replaceSessionSnapshot, SessionStateError,
+  createSession, emptyPipeline, freshMission, reduceSession, replaceSessionSnapshot, SessionStateError,
 } from './engine/session.js';
 export { createLabSession } from './engine/lab-session.js';
 export { createLabRuntime, READ_ONLY_OPERATIONS, RUNTIME_LIMITS } from './engine/runtime.js';
@@ -18,11 +18,15 @@ export { availableLabs, labCatalog, getLabManifest } from './missions/catalog.js
 export { evaluateMission } from './missions/evaluate.js';
 export { FRESHNESS_MS, PREDICATES } from './missions/predicates.js';
 export {
-  fixtureCatalog, getFixture, createFixtureResources, createFixtureHistory,
+  fixtureCatalog, getFixture, createFixtureResources, createFixtureHistory, createFixturePipeline,
 } from './fixtures/catalog.js';
-export { API_IMAGE, SERVICE_NAME, getRelease, releaseCatalog, workloadLines } from './fixtures/releases.js';
+export {
+  API_IMAGE, SERVICE_NAME, getRelease, getReleaseById, releaseCatalog, releaseRef, workloadLines,
+} from './fixtures/releases.js';
 export { sanitizeLogMessage, sanitizeTerminalText } from './commands/sanitize.js';
 export {
   COMMAND_HELP, commandContext, MAX_COMMAND_LENGTH, parseCommand, TAIL_LIMITS,
 } from './commands/parser.js';
+export { PIPELINE_LIMITS, pipelineRunSchema, pipelineSchema, STAGE_IDS } from './schemas/pipeline.js';
+export { createPipelineRecorder, createRunRecord, isCancellable } from './pipeline/recorder.js';
 export { createSimulatorExecutor, SIMULATED_OPERATIONS, SIMULATED_TIMINGS } from './simulator/executor.js';

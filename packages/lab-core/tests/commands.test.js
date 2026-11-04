@@ -33,9 +33,10 @@ describe('supported command grammar', () => {
     expect(parseCommand(input, context)).toMatchObject(expected);
   });
 
-  it('maps pipeline run to the lab candidate fixture', () => {
-    expect(parseCommand('pipeline run', { ...context, candidateFixtureId: 'api-v1-1-0' }))
-      .toMatchObject({ request: { type: 'pipeline.run', parameters: { fixtureId: 'api-v1-1-0' } } });
+  it('maps pipeline run to the lab candidate release', () => {
+    expect(parseCommand('pipeline run', { ...context, candidateReleaseId: 'api-1-1-0' }))
+      .toMatchObject({ request: { type: 'pipeline.run', parameters: { releaseId: 'api-1-1-0' } } });
+    expect(parseCommand('pipeline run', context)).toMatchObject({ kind: 'error', message: 'This lab has no pipeline candidate.' });
   });
 });
 

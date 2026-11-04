@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L05 in review; merges delegated for L01-L17 |
+| Current delivery stage | L06 in review; merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -578,6 +578,11 @@ Required fields are illustrated below.
     "dropped": 0,
     "bytes": 0,
     "nextSeq": 1
+  },
+  "pipeline": {
+    "knownGood": null,
+    "deployed": null,
+    "runs": []
   },
   "lastEventSequence": 7,
   "createdAt": "2026-11-04T10:00:00.000Z",
@@ -2739,8 +2744,8 @@ The ledger below describes the current verified execution state.
 | L02 | merged | feat/lot-02-workbench-shell | [PR #2](https://github.com/Nadjide/devops-playground/pull/2) | 12 workbench tests, 95 domain tests, static build, 7 Playwright checks; [CI run 41830632214](https://github.com/Nadjide/devops-playground/actions/runs/41830632214); squash commit `d731518` |
 | L03 | merged | feat/lot-03-docker-simulator | [PR #3](https://github.com/Nadjide/devops-playground/pull/3) | 118 domain tests, 19 workbench tests, 9 Playwright checks; [CI run 41833064587](https://github.com/Nadjide/devops-playground/actions/runs/41833064587); squash commit `35984bc` |
 | L04 | merged | feat/lot-04-terminal-and-logs | [PR #4](https://github.com/Nadjide/devops-playground/pull/4) | 175 domain tests, 29 workbench tests, 12 Playwright checks; [CI run 41834430821](https://github.com/Nadjide/devops-playground/actions/runs/41834430821); squash commit `55bf2eb` |
-| L05 | pr-open | feat/lot-05-guided-missions | Pending | 194 domain tests, 37 workbench tests, 16 Playwright demo checks |
-| L06 | planned | Pending | Pending | Pending |
+| L05 | merged | feat/lot-05-guided-missions | [PR #5](https://github.com/Nadjide/devops-playground/pull/5) | 194 domain tests, 37 workbench tests, 16 Playwright checks; [CI run 41836409932](https://github.com/Nadjide/devops-playground/actions/runs/41836409932); squash commit `91b8501` |
+| L06 | pr-open | feat/lot-06-simulated-pipeline | Pending | 207 domain tests, 41 workbench tests, 18 Playwright demo checks |
 | L07 | planned | Pending | Pending | Pending |
 | L08 | planned | Pending | Pending | Pending |
 | L09 | planned | Pending | Pending | Pending |
@@ -2888,6 +2893,26 @@ current process start and at most 10 seconds old when first accepted. Mission
 completion is an immutable record; later degradation marks objectives
 invalidated without erasing it. Sessions now carry `fixtureId`, and mission
 progress carries `completion`; the section 9.2 example reflects both.
+
+### 26.9 L06 Local Verification
+
+Verified on 2026-11-04 in the owner's Windows environment with Node.js 22.18.0
+and Playwright 1.64.1 Chromium.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings |
+| `npm test` | Passed, 3 original API tests |
+| `npm run test:playground` | Passed, 207 domain tests and 41 workbench tests |
+| `npm run test:e2e:demo` | Passed, 18 checks including M03 by controls and by terminal |
+
+Snapshots carry `pipeline` (known-good release, deployed release and its
+verification status, and the five latest runs). A shared pipeline recorder
+enforces the fixed stage graph for every driver. Decisions recorded here:
+`pipeline.run` takes a `releaseId` from the fixture's approved candidates,
+and `pipeline.cancel` was added as a control operation that is accepted only
+before the deploy stage starts; a second pipeline submission while one is
+active returns `PIPELINE_BUSY`.
 
 ## 27. Decisions and Scope Change Control
 

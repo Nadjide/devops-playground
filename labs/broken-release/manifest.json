@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "broken-release",
+  "kind": "mission",
+  "title": "Recover a broken release",
+  "description": "Release 1.1.0 passed its tests and image build but fails at runtime. Inspect the evidence, roll back to the last known-good release, and verify its version and health.",
+  "difficulty": "intermediate",
+  "estimatedMinutes": 10,
+  "supportedModes": [
+    "demo",
+    "local"
+  ],
+  "fixtureId": "api-broken-release",
+  "allowedOperations": [
+    "container.start",
+    "container.stop",
+    "container.restart",
+    "container.inspect",
+    "container.logs",
+    "health.probe",
+    "version.probe",
+    "pipeline.run",
+    "pipeline.rollback",
+    "pipeline.cancel",
+    "session.reset",
+    "session.end"
+  ],
+  "objectives": [
+    {
+      "id": "inspect-failure",
+      "label": "Inspect the failed release logs or container state",
+      "predicateId": "evidence.logs-read",
+      "required": true
+    },
+    {
+      "id": "restore-version",
+      "label": "Observe the known-good version 1.0.0 from GET /version",
+      "predicateId": "service.version-verified",
+      "required": true
+    },
+    {
+      "id": "verify-health",
+      "label": "Verify a successful health response",
+      "predicateId": "service.health-verified",
+      "required": true
+    }
+  ],
+  "hints": [
+    "Open the Pipeline panel: which stage failed, and what did the verify stage observe?",
+    "Read the api logs. The candidate exits during startup, so restarting it cannot help.",
+    "Roll back to the last known-good release. Its verify stage probes health and version; you can also probe them yourself."
+  ],
+  "solution": [
+    "docker logs api",
+    "pipeline rollback",
+    "curl http://api:3000/version",
+    "curl http://api:3000/health"
+  ]
+}

@@ -14,7 +14,8 @@
   "fixtureOptions": [
     "api-running",
     "api-stopped",
-    "api-wrong-port"
+    "api-wrong-port",
+    "api-broken-release"
   ],
   "allowedOperations": [
     "container.start",
@@ -25,6 +26,9 @@
     "service.configure",
     "health.probe",
     "version.probe",
+    "pipeline.run",
+    "pipeline.rollback",
+    "pipeline.cancel",
     "session.reset",
     "session.end"
   ],

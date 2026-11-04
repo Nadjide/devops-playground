@@ -57,8 +57,29 @@ function probeFailure(session, operation) {
   return `curl: ${operation.error?.message ?? 'probe failed'}`;
 }
 
+function pipelineSummary(operation, session) {
+  const run = session.pipeline.runs.find((item) => item.id === operation.id);
+  if (!run) {
+    return [];
+  }
+  const stageLines = run.stages.map((stage) => line(
+    `  ${stage.id.padEnd(9)} ${stage.status}${stage.durationMs !== null ? ` (${stage.durationMs} ms)` : ''}`,
+    { passed: 'success', failed: 'error', cancelled: 'warning' }[stage.status] ?? 'muted',
+  ));
+  const deployed = session.pipeline.deployed;
+  return [
+    line(`${run.kind === 'rollback' ? 'Rollback' : 'Pipeline'} for release ${run.release.version}: ${run.status}`),
+    ...stageLines,
+    ...(run.failureReason ? [line(run.failureReason, 'error')] : []),
+    ...(deployed ? [line(`Deployed: ${deployed.version} (${deployed.status})`, 'muted')] : []),
+  ];
+}
+
 function successOutput(view, operation, session) {
   const result = operation.result;
+  if (view === 'pipeline.run' || view === 'pipeline.rollback') {
+    return pipelineSummary(operation, session);
+  }
   switch (view) {
     case 'docker.start':
     case 'docker.stop':
@@ -88,6 +109,9 @@ function successOutput(view, operation, session) {
 function failureOutput(view, operation, session) {
   if (view.startsWith('curl/')) {
     return [line(probeFailure(session, operation), 'error')];
+  }
+  if ((view === 'pipeline.run' || view === 'pipeline.rollback') && session.pipeline.runs.some((run) => run.id === operation.id)) {
+    return pipelineSummary(operation, session);
   }
   if (operation.status === 'cancelled') {
     return [line(`${describeOperation(operation)} was cancelled.`, 'warning')];

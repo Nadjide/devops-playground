@@ -1,4 +1,5 @@
 import { parse } from 'shell-quote';
+import { getFixture } from '../fixtures/catalog.js';
 
 export const MAX_COMMAND_LENGTH = 512;
 export const TAIL_LIMITS = Object.freeze({ min: 1, max: 200, default: 50 });
@@ -145,7 +146,7 @@ function parseCurl(args, context) {
  * a typed operation request. Nothing here executes; callers dispatch the result
  * through the same session client the buttons use.
  *
- * context: { services: string[], probePorts: { [serviceId]: number }, fixtureId?: string }
+ * context: { services: string[], probePorts: { [serviceId]: number }, candidateReleaseId?: string }
  */
 export function parseCommand(input, context) {
   const tokenized = tokenize(input);
@@ -175,7 +176,10 @@ export function parseCommand(input, context) {
       return parseCurl(args, context);
     case 'pipeline':
       if (args.length === 1 && args[0] === 'run') {
-        return operation('pipeline.run', { fixtureId: context.candidateFixtureId ?? 'api-candidate' }, 'pipeline.run');
+        if (!context.candidateReleaseId) {
+          return reject('This lab has no pipeline candidate.');
+        }
+        return operation('pipeline.run', { releaseId: context.candidateReleaseId }, 'pipeline.run');
       }
       if (args.length === 1 && args[0] === 'rollback') {
         return operation('pipeline.rollback', {}, 'pipeline.rollback');
@@ -188,6 +192,7 @@ export function parseCommand(input, context) {
 
 export function commandContext(session) {
   return {
+    candidateReleaseId: getFixture(session.fixtureId).candidates?.[0],
     services: session.resources.map((resource) => resource.serviceId),
     probePorts: Object.fromEntries(session.resources.map((resource) => [resource.serviceId, resource.desired.expectedProbePort])),
   };

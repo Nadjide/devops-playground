@@ -1,5 +1,5 @@
 const tones = {
-  running: 'success', healthy: 'success', passed: 'success', satisfied: 'success', ready: 'success', completed: 'success',
+  running: 'success', healthy: 'success', passed: 'success', verified: 'success', satisfied: 'success', ready: 'success', completed: 'success',
   starting: 'warning', created: 'warning', removing: 'warning', queued: 'warning', pending: 'neutral', 'in-progress': 'info',
   stopped: 'neutral', exited: 'danger', unhealthy: 'danger', failed: 'danger', invalidated: 'danger', removed: 'neutral',
   unknown: 'neutral', skipped: 'neutral', cancelled: 'neutral', disconnected: 'danger', connecting: 'warning',

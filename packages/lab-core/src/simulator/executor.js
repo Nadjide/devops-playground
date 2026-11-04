@@ -1,6 +1,9 @@
-import { createFixtureHistory, createFixtureResources } from '../fixtures/catalog.js';
-import { getRelease, SERVICE_NAME, workloadLines } from '../fixtures/releases.js';
-import { OperationFailure } from '../engine/errors.js';
+import {
+  createFixtureHistory, createFixturePipeline, createFixtureResources, getFixture,
+} from '../fixtures/catalog.js';
+import { getRelease, getReleaseById, releaseRef, SERVICE_NAME, workloadLines } from '../fixtures/releases.js';
+import { AbortedError, OperationFailure } from '../engine/errors.js';
+import { createPipelineRecorder, createRunRecord } from '../pipeline/recorder.js';
 
 /** Virtual durations in milliseconds. Tests advance a virtual clock past them. */
 export const SIMULATED_TIMINGS = Object.freeze({
@@ -10,11 +13,18 @@ export const SIMULATED_TIMINGS = Object.freeze({
   probe: 80,
   inspect: 60,
   logs: 60,
+  validate: 300,
+  test: 1200,
+  build: 1500,
+  verifyInterval: 1000,
+  verifyAttempts: 4,
 });
 
 export const SIMULATED_OPERATIONS = Object.freeze([
   'container.start', 'container.stop', 'container.restart', 'container.inspect', 'container.logs',
-  'service.configure', 'health.probe', 'version.probe', 'session.reset', 'session.end',
+  'service.configure', 'health.probe', 'version.probe',
+  'pipeline.run', 'pipeline.rollback', 'pipeline.cancel',
+  'session.reset', 'session.end',
 ]);
 
 function resourceFor(ctx, serviceId) {
@@ -27,12 +37,15 @@ function lines(ctx, serviceId, entries) {
 }
 
 /**
- * Deterministic browser-side Docker model. Every effect is reported as an
- * observation through the runtime so all panels read one coherent snapshot.
+ * Deterministic browser-side Docker and pipeline model. Every effect is
+ * reported as an observation through the runtime so all panels read one
+ * coherent snapshot. `faults` lets tests make an approved release crash.
  */
-export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
-  async function start(operation, ctx) {
-    const { serviceId } = operation.parameters;
+export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS, faults = {} } = {}) {
+  const startupOf = (release) => faults[release.id] ?? release.startup;
+
+  async function start(operation, ctx, { tolerateCrash = false } = {}) {
+    const { serviceId } = operation.parameters.serviceId ? operation.parameters : { serviceId: 'api' };
     const resource = resourceFor(ctx, serviceId);
     if (['running', 'starting'].includes(resource.observed.state)) {
       return { serviceId, state: resource.observed.state, changed: false };
@@ -45,11 +58,14 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
     await ctx.delay(timings.startup);
     const startedAt = ctx.now();
 
-    if (release.startup === 'crash') {
+    if (startupOf(release) === 'crash') {
       lines(ctx, serviceId, workloadLines.crash(release));
       ctx.emit('resource.observed', {
         resourceId: resource.id, state: 'exited', health: 'unhealthy', exitCode: 1, startedAt,
       });
+      if (tolerateCrash) {
+        return { serviceId, state: 'exited', exitCode: 1, changed: true };
+      }
       throw new OperationFailure('CONTAINER_EXITED', `${serviceId} exited with code 1 during startup.`);
     }
 
@@ -68,7 +84,7 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
   }
 
   async function stop(operation, ctx) {
-    const { serviceId } = operation.parameters;
+    const serviceId = operation.parameters.serviceId ?? 'api';
     const resource = resourceFor(ctx, serviceId);
     if (!['running', 'starting'].includes(resource.observed.state)) {
       return { serviceId, state: resource.observed.state, changed: false };
@@ -79,6 +95,26 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
     return { serviceId, state: 'stopped', exitCode: 0, changed: true };
   }
 
+  /** Replace a container with a new approved configuration, keeping its lifecycle intent. */
+  async function replace(ctx, resource, change, { startAfter, tolerateCrash = false }) {
+    const operation = { parameters: { serviceId: resource.serviceId } };
+    await stop(operation, ctx);
+    ctx.emit('resource.configured', { resourceId: resource.id, ...change });
+    const updated = resourceFor(ctx, resource.serviceId);
+    lines(ctx, resource.serviceId, [{
+      stream: 'system', level: 'info',
+      message: `Container ${resource.serviceId} recreated from ${updated.desired.image} with APP_PORT=${updated.desired.appPort}`,
+    }]);
+    ctx.emit('resource.observed', {
+      resourceId: resource.id, state: 'created', health: 'unknown', exitCode: null, startedAt: null,
+      image: updated.desired.image, ports: [{ containerPort: updated.desired.appPort, hostPort: null }],
+    });
+    if (startAfter) {
+      await start(operation, ctx, { tolerateCrash });
+    }
+    return resourceFor(ctx, resource.serviceId);
+  }
+
   /** Apply an approved appPort; a running workload is replaced to pick it up. */
   async function configure(operation, ctx) {
     const { serviceId, appPort } = operation.parameters;
@@ -87,22 +123,8 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
       return { serviceId, appPort, changed: false, replaced: false };
     }
     const wasRunning = ['running', 'starting'].includes(resource.observed.state);
-    if (wasRunning) {
-      await stop(operation, ctx);
-    }
-    ctx.emit('resource.configured', { resourceId: resource.id, appPort });
-    lines(ctx, serviceId, [{
-      stream: 'system', level: 'info',
-      message: `Container ${serviceId} recreated from ${resource.desired.image} with APP_PORT=${appPort}`,
-    }]);
-    ctx.emit('resource.observed', {
-      resourceId: resource.id, state: 'created', health: 'unknown', exitCode: null, startedAt: null,
-      ports: [{ containerPort: appPort, hostPort: null }],
-    });
-    if (wasRunning) {
-      await start(operation, ctx);
-    }
-    return { serviceId, appPort, changed: true, replaced: true, state: resourceFor(ctx, serviceId).observed.state };
+    const updated = await replace(ctx, resource, { appPort }, { startAfter: wasRunning });
+    return { serviceId, appPort, changed: true, replaced: true, state: updated.observed.state };
   }
 
   async function inspect(operation, ctx) {
@@ -130,8 +152,8 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
     };
   }
 
-  async function probe(kind, operation, ctx) {
-    const { serviceId } = operation.parameters;
+  /** One HTTP probe against the fixed service alias and expected port. */
+  async function probeOnce(kind, serviceId, ctx) {
     await ctx.delay(timings.probe);
     const resource = resourceFor(ctx, serviceId);
     const port = resource.desired.expectedProbePort;
@@ -150,12 +172,146 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
       observation = { ...observation, ok: true, statusCode: 200, body, error: null };
     }
     ctx.emit('probe.completed', observation);
+    return observation;
+  }
+
+  async function probe(kind, operation, ctx) {
+    const { serviceId } = operation.parameters;
+    const observation = await probeOnce(kind, serviceId, ctx);
     if (!observation.ok) {
-      throw new OperationFailure('PROBE_FAILED', `GET http://${serviceId}:${port}${path} failed: ${observation.error}`, {
+      throw new OperationFailure('PROBE_FAILED', `GET http://${serviceId}:${observation.port}${observation.path} failed: ${observation.error}`, {
         retryable: true,
       });
     }
     return observation;
+  }
+
+  async function runStage(recorder, runId, stageId, ctx, work) {
+    recorder.stageStart(runId, stageId);
+    const outcome = await work();
+    recorder.stageFinish(runId, stageId, outcome);
+    if (outcome.status === 'failed') {
+      throw new OperationFailure('PIPELINE_STAGE_FAILED', `${stageId}: ${outcome.reason}`);
+    }
+  }
+
+  async function verifyRelease(ctx, release) {
+    const log = [];
+    let lastError = 'no probe attempted';
+    for (let attempt = 1; attempt <= timings.verifyAttempts; attempt += 1) {
+      await ctx.delay(timings.verifyInterval);
+      const health = await probeOnce('health', 'api', ctx);
+      if (!health.ok) {
+        lastError = health.error;
+        log.push(`Attempt ${attempt}: GET http://api:${health.port}/health failed: ${health.error}`);
+        continue;
+      }
+      log.push(`Attempt ${attempt}: GET http://api:${health.port}/health returned 200`);
+      const version = await probeOnce('version', 'api', ctx);
+      if (version.ok && version.body.version === release.version) {
+        log.push(`GET /version returned ${version.body.version} as expected`);
+        return { status: 'passed', exitCode: 0, logs: log };
+      }
+      const observed = version.ok ? version.body.version : version.error;
+      log.push(`GET /version returned ${observed}; expected ${release.version}`);
+      return { status: 'failed', exitCode: 1, logs: log, reason: `version mismatch: expected ${release.version}, observed ${observed}.` };
+    }
+    const resource = resourceFor(ctx, 'api');
+    const exited = resource.observed.state === 'exited' ? ` Container api exited with code ${resource.observed.exitCode}.` : '';
+    log.push(`Verification deadline reached after ${timings.verifyAttempts} attempts.${exited}`.trim());
+    return {
+      status: 'failed', exitCode: 1, logs: log,
+      reason: `GET /health did not succeed within ${timings.verifyAttempts} attempts (${lastError}).${exited}`,
+    };
+  }
+
+  /** Fixed graph validate -> test -> build -> deploy -> verify, simulated deterministically. */
+  async function executeRun(operation, ctx, kind, release) {
+    const recorder = createPipelineRecorder(ctx, { source: 'simulator' });
+    const runId = operation.id;
+    recorder.start(createRunRecord({ id: runId, kind, release, startedAt: ctx.now() }));
+    try {
+      const api = resourceFor(ctx, 'api');
+      await runStage(recorder, runId, 'validate', ctx, async () => {
+        await ctx.delay(timings.validate);
+        return {
+          status: 'passed', exitCode: 0,
+          logs: [
+            `Release ${release.id} (${release.image}) is approved for this lab.`,
+            `Service configuration: appPort ${api.desired.appPort}, expected probe port ${api.desired.expectedProbePort}.`,
+          ],
+        };
+      });
+      if (kind === 'rollback') {
+        recorder.skip(runId, 'test', 'Reusing the verified known-good image; tests are not re-run.');
+        recorder.skip(runId, 'build', `Reusing the existing image ${release.image}.`);
+      } else {
+        await runStage(recorder, runId, 'test', ctx, async () => {
+          await ctx.delay(timings.test);
+          return {
+            status: 'passed', exitCode: 0,
+            logs: ['$ npm ci --workspaces=false', '$ npm test', 'PASS tests/app.test.js', 'Tests: 3 passed, 3 total'],
+          };
+        });
+        await runStage(recorder, runId, 'build', ctx, async () => {
+          await ctx.delay(timings.build);
+          return {
+            status: 'passed', exitCode: 0,
+            logs: [`$ docker build -t ${release.image} labs/fixtures/api`, 'Step 1/6 : FROM node:22-alpine', `Successfully tagged ${release.image}`],
+          };
+        });
+      }
+      await runStage(recorder, runId, 'deploy', ctx, async () => {
+        const previous = ctx.session().pipeline.deployed;
+        if (previous?.status === 'verified') {
+          // Capture the observed known-good release before replacing it.
+          recorder.setReleases(() => ({ knownGood: { releaseId: previous.releaseId, image: previous.image, version: previous.version } }));
+        }
+        const before = resourceFor(ctx, 'api').desired.image;
+        await replace(ctx, resourceFor(ctx, 'api'), { image: release.image }, { startAfter: true, tolerateCrash: true });
+        recorder.setReleases(() => ({ deployed: { ...releaseRef(release), status: 'unverified' } }));
+        return { status: 'passed', exitCode: 0, logs: [`Replaced ${before} with ${release.image}`, `Container api started from ${release.image}`] };
+      });
+      let verification;
+      await runStage(recorder, runId, 'verify', ctx, async () => {
+        verification = await verifyRelease(ctx, release);
+        return verification;
+      }).catch((error) => {
+        recorder.setReleases(() => ({ deployed: { ...releaseRef(release), status: 'failed' } }));
+        throw error;
+      });
+      recorder.setReleases(() => ({ deployed: { ...releaseRef(release), status: 'verified' }, knownGood: releaseRef(release) }));
+      recorder.finish(runId, { status: 'passed' });
+      return { runId, kind, release: releaseRef(release), status: 'passed' };
+    } catch (error) {
+      if (error instanceof AbortedError || ctx.signal.aborted) {
+        recorder.finish(runId, { status: 'cancelled', failureReason: null }, ctx.reconcile);
+        throw new AbortedError();
+      }
+      const reason = error instanceof OperationFailure ? error.message : 'The pipeline failed unexpectedly.';
+      recorder.finish(runId, { status: 'failed', failureReason: reason });
+      throw error;
+    }
+  }
+
+  async function pipelineRun(operation, ctx) {
+    const fixture = getFixture(ctx.session().fixtureId);
+    const { releaseId } = operation.parameters;
+    if (!fixture.candidates.includes(releaseId)) {
+      throw new OperationFailure('RELEASE_NOT_APPROVED', `Release ${releaseId} is not an approved candidate for this lab.`);
+    }
+    return executeRun(operation, ctx, 'deploy', getReleaseById(releaseId));
+  }
+
+  async function pipelineRollback(operation, ctx) {
+    const { knownGood, deployed } = ctx.session().pipeline;
+    if (!knownGood) {
+      throw new OperationFailure('NO_KNOWN_GOOD_RELEASE', 'No known-good release has been recorded yet.');
+    }
+    if (deployed?.releaseId === knownGood.releaseId && deployed.status === 'verified') {
+      throw new OperationFailure('ALREADY_ON_KNOWN_GOOD', `Release ${knownGood.version} is already deployed and verified.`);
+    }
+    return executeRun(operation, ctx, 'rollback', getReleaseById(knownGood.releaseId));
   }
 
   const handlers = {
@@ -170,6 +326,8 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
     'container.logs': logs,
     'health.probe': (operation, ctx) => probe('health', operation, ctx),
     'version.probe': (operation, ctx) => probe('version', operation, ctx),
+    'pipeline.run': pipelineRun,
+    'pipeline.rollback': pipelineRollback,
   };
 
   return {
@@ -179,6 +337,7 @@ export function createSimulatorExecutor({ timings = SIMULATED_TIMINGS } = {}) {
       return {
         resources: createFixtureResources(fixtureId, { sessionId, generation, observedAt: now, source: 'simulator' }),
         logs: createFixtureHistory(fixtureId, { now }),
+        pipeline: createFixturePipeline(fixtureId, { now }),
       };
     },
     async teardown({ session }) {
