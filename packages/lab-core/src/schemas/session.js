@@ -41,6 +41,7 @@ export const sessionSchema = z.strictObject({
   id: identifierSchema,
   mode: z.enum(['demo', 'local']),
   labId: slugSchema,
+  fixtureId: slugSchema,
   revision: revisionSchema,
   generation: generationSchema,
   eventEpoch: identifierSchema,
@@ -85,6 +86,10 @@ export const sessionSchema = z.strictObject({
         objective.evidence.revision > session.revision)) {
       context.addIssue({ code: 'custom', message: 'Objective evidence belongs to another generation or revision.' });
     }
+  }
+  const completion = session.mission.completion;
+  if (completion && (completion.generation !== session.generation || completion.revision > session.revision)) {
+    context.addIssue({ code: 'custom', message: 'Mission completion belongs to another generation or revision.' });
   }
   for (const probe of session.probes) {
     if (probe.generation !== session.generation || probe.revision > session.revision) {

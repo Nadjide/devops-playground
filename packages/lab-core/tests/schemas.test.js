@@ -13,7 +13,7 @@ describe('runtime contracts', () => {
     const examples = [...plan.matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)].map((match) => JSON.parse(match[1]));
     const snapshot = examples.find((example) => example.lastEventSequence !== undefined);
     const event = examples.find((example) => example.sequence !== undefined);
-    const manifest = examples.find((example) => example.fixtureId !== undefined);
+    const manifest = examples.find((example) => example.allowedOperations !== undefined);
     const request = examples.find((example) => example.type === 'container.start');
 
     expect(sessionSchema.parse(snapshot)).toEqual(snapshot);

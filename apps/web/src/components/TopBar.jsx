@@ -1,6 +1,7 @@
+import { useRef } from 'react';
 import { Boxes, FlaskConical, Radio } from 'lucide-react';
-import { labCatalog } from '@devops-playground/lab-core';
 import { useSessionClient, useSessionState } from '../session/SessionContext.jsx';
+import { useSessionActions } from '../session/SessionActions.jsx';
 import { SessionMenu } from './SessionMenu.jsx';
 
 const connectionLabels = {
@@ -12,7 +13,9 @@ const connectionLabels = {
 export function TopBar() {
   const client = useSessionClient();
   const state = useSessionState();
-  const labId = state.session?.labId ?? labCatalog[0].id;
+  const { requestSessionChange } = useSessionActions();
+  const selectRef = useRef(null);
+  const labId = state.session?.labId ?? client.selection().labId;
 
   return (
     <header className="topbar">
@@ -34,10 +37,17 @@ export function TopBar() {
       <div className="chrome-actions">
         <label className="mission-select">
           <span className="visually-hidden">Mission</span>
-          <select value={labId} disabled={labCatalog.length < 2} onChange={() => {}} aria-describedby="mission-select-hint">
-            {labCatalog.map((lab) => <option key={lab.id} value={lab.id}>{lab.title}</option>)}
+          <select
+            ref={selectRef}
+            value={labId}
+            disabled={state.status === 'loading'}
+            onChange={(event) => {
+              // The select keeps the active lab until the change is confirmed.
+              requestSessionChange({ labId: event.target.value }, { returnFocus: selectRef.current });
+            }}
+          >
+            {client.labs.map((lab) => <option key={lab.id} value={lab.id}>{lab.title}</option>)}
           </select>
-          <span id="mission-select-hint" className="visually-hidden">Selected mission</span>
         </label>
         <SessionMenu />
       </div>

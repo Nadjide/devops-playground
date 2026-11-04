@@ -56,6 +56,7 @@ export function TerminalPanel() {
     let line = '';
     let busy = false;
     let disposed = false;
+    let typeAhead = [];
 
     const write = (text) => {
       terminalState.append(text);
@@ -98,6 +99,12 @@ export function TerminalPanel() {
         write(`${text}\r\n`);
       }
       write(PROMPT);
+      // Replay keystrokes typed while the command ran, like a shell's type-ahead.
+      const buffered = typeAhead;
+      typeAhead = [];
+      for (const data of buffered) {
+        onInput(data);
+      }
     }
 
     function append(text) {
@@ -109,8 +116,14 @@ export function TerminalPanel() {
       }
     }
 
-    const dataSubscription = terminal.onData((data) => {
+    function onInput(data) {
       if (busy) {
+        // Keep a bounded type-ahead buffer; Ctrl+C discards it.
+        if (data === '\x03') {
+          typeAhead = [];
+        } else if (typeAhead.reduce((size, chunk) => size + chunk.length, 0) + data.length <= MAX_COMMAND_LENGTH * 2) {
+          typeAhead.push(data);
+        }
         return;
       }
       if (data === '\r') {
@@ -151,7 +164,9 @@ export function TerminalPanel() {
       } else {
         append(data);
       }
-    });
+    }
+
+    const dataSubscription = terminal.onData(onInput);
 
     const fitTerminal = () => {
       try {

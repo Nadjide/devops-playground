@@ -129,10 +129,13 @@ function MissionSummary({ onOpen }) {
   const { session } = useSessionState();
   const lab = getLabManifest(session.labId);
   const satisfied = session.mission.objectives.filter((objective) => objective.status === 'satisfied').length;
+  const detail = lab.kind === 'exploration'
+    ? 'Free exploration'
+    : `${satisfied}/${session.mission.objectives.length} objectives${session.mission.completion ? ' · complete' : ''}`;
   return (
     <button type="button" className="mission-summary" onClick={onOpen}>
       <span className="mission-summary-title">{lab.title}</span>
-      <span className="muted small">{satisfied}/{session.mission.objectives.length} objectives</span>
+      <span className="muted small">{detail}</span>
     </button>
   );
 }

@@ -214,7 +214,7 @@ describe('snapshot replacement', () => {
 
   it.each([
     { id: 'foreign' },
-    { labId: 'other-lab', mission: { id: 'other-lab', status: 'not-started', objectives: [] } },
+    { labId: 'other-lab', mission: { id: 'other-lab', status: 'not-started', objectives: [], completion: null } },
   ])('rejects replacement of session identity %#', (overrides) => {
     const current = makeSession({ resources: [] });
     expectStateError(() => replaceSessionSnapshot(current, { ...current, ...overrides }), 'SNAPSHOT_IDENTITY_CHANGED');

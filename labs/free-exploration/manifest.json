@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "free-exploration",
+  "kind": "exploration",
+  "title": "Free exploration",
+  "description": "Operate the API without objectives. Pick an approved starting fixture, change its lifecycle and configuration, and observe the effects.",
+  "difficulty": "beginner",
+  "estimatedMinutes": 15,
+  "supportedModes": [
+    "demo",
+    "local"
+  ],
+  "fixtureId": "api-running",
+  "fixtureOptions": [
+    "api-running",
+    "api-stopped",
+    "api-wrong-port"
+  ],
+  "allowedOperations": [
+    "container.start",
+    "container.stop",
+    "container.restart",
+    "container.inspect",
+    "container.logs",
+    "service.configure",
+    "health.probe",
+    "version.probe",
+    "session.reset",
+    "session.end"
+  ],
+  "objectives": []
+}

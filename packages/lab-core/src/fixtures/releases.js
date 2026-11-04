@@ -32,6 +32,7 @@ export function getRelease(image) {
 export const workloadLines = {
   startup: (release, appPort) => [
     { stream: 'stdout', level: 'info', message: `> ${SERVICE_NAME}@${release.version} start` },
+    { stream: 'stdout', level: 'info', message: `Configuration loaded: APP_PORT=${appPort}` },
     { stream: 'stdout', level: 'info', message: `DevOps Playground API ${release.version} listening on port ${appPort}` },
   ],
   shutdown: () => [

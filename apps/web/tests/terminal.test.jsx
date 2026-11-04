@@ -135,6 +135,21 @@ describe('terminal panel', () => {
     expect(xterm.observers.every((observer) => observer.disconnected)).toBe(true);
   });
 
+  it('buffers keystrokes typed while a command runs and replays them', async () => {
+    const { advance, client } = await renderApp();
+    const terminal = await vi.waitFor(() => xterm.instances[0] ?? Promise.reject(new Error('not mounted')));
+    act(() => {
+      terminal.handler('docker start api');
+      terminal.handler('\r');
+      terminal.handler('docker ps');
+      terminal.handler('\r');
+    });
+    await advance(1000);
+    await advance(10);
+    expect(client.getSnapshot().session.resources[0].observed.state).toBe('running');
+    expect(terminal.output).toMatch(/SERVICE[\s\S]*running/);
+  });
+
   it('rejects multiline paste and strips control characters from input', async () => {
     await renderApp();
     const terminal = await vi.waitFor(() => xterm.instances[0] ?? Promise.reject(new Error('not mounted')));

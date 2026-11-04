@@ -2,6 +2,8 @@ import { operationRequestSchema } from '../schemas/operations.js';
 import { identifierSchema } from '../schemas/shared.js';
 import { LIMITS } from '../schemas/observations.js';
 import { getLabManifest } from '../missions/catalog.js';
+import { evaluateMission } from '../missions/evaluate.js';
+import { getFixture } from '../fixtures/catalog.js';
 import { createSession, freshMission, reduceSession, SessionStateError } from './session.js';
 import { createSystemClock, delay } from './clock.js';
 import { sanitizeLogMessage } from '../commands/sanitize.js';
@@ -41,6 +43,7 @@ const clone = (value) => (value === undefined ? value : structuredClone(value));
  */
 export function createLabRuntime({
   labId,
+  fixtureId: requestedFixture,
   mode = 'demo',
   executor,
   clock = createSystemClock(),
@@ -49,6 +52,11 @@ export function createLabRuntime({
   onError = () => {},
 }) {
   const lab = getLabManifest(labId);
+  const fixtureId = requestedFixture ?? lab.fixtureId;
+  if (fixtureId !== lab.fixtureId && !lab.fixtureOptions?.includes(fixtureId)) {
+    throw new DomainError('UNSUPPORTED_FIXTURE', 'The lab does not offer this fixture.', { status: 422 });
+  }
+  const fixture = getFixture(fixtureId);
   const supported = new Set(lab.allowedOperations.filter((type) => executor.supportedOperations.includes(type)));
   const listeners = new Set();
   const registry = new Map();
@@ -101,6 +109,12 @@ export function createLabRuntime({
       ? [...events.slice(events.length - RUNTIME_LIMITS.events + 1), event]
       : [...events, event];
     notify(event);
+    if (type !== 'mission.updated' && ['active', 'degraded'].includes(session.status)) {
+      const progress = evaluateMission(session, lab, { event, nowMs: clock.now(), fixture });
+      if (progress) {
+        emit('mission.updated', progress);
+      }
+    }
     return event;
   }
 
@@ -248,7 +262,7 @@ export function createLabRuntime({
   async function prepareFixture(generation) {
     const setup = await executor.setup({
       labId: lab.id,
-      fixtureId: lab.fixtureId,
+      fixtureId,
       sessionId: session?.id ?? null,
       generation,
       now: timestamp(),
@@ -421,17 +435,19 @@ export function createLabRuntime({
 
   return {
     lab,
+    fixtureId,
     mode,
     backend: executor.backend ?? 'Execution backend',
     capabilities: () => [...supported],
     async start() {
       const sessionId = nextId();
       const createdAt = new Date(clock.now()).toISOString();
-      const setup = await executor.setup({ labId: lab.id, fixtureId: lab.fixtureId, sessionId, generation: 1, now: createdAt });
+      const setup = await executor.setup({ labId: lab.id, fixtureId, sessionId, generation: 1, now: createdAt });
       let first = true;
       session = createSession({
         manifest: lab,
         mode,
+        fixtureId,
         resources: setup.resources,
         now: () => createdAt,
         nextId: () => {
