@@ -2,8 +2,9 @@ import { useState } from 'react';
 import {
   Cloud, Database, FileText, FolderPlus, LoaderCircle, Play, Settings2, Trash2, Upload, X,
 } from 'lucide-react';
-import { getStorageProvider, STORAGE_LIMITS, utf8Bytes } from '@devops-playground/lab-core';
+import { getStorageProvider, labVariants, STORAGE_LIMITS, utf8Bytes } from '@devops-playground/lab-core';
 import { useSessionClient, useSessionState } from '../session/SessionContext.jsx';
+import { useSessionActions } from '../session/SessionActions.jsx';
 import { isActive, latestSucceeded, useOperationDispatch } from '../session/operations.js';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { IconButton } from '../components/IconButton.jsx';
@@ -32,6 +33,42 @@ function OperationError({ operation }) {
     return null;
   }
   return <p className="field-error" role="alert">{operation.error.message}</p>;
+}
+
+/**
+ * Provider variants of the active mission. Each provider runs in its own
+ * session, so switching asks for confirmation and starts a new session.
+ */
+function ProviderSwitch({ session }) {
+  const client = useSessionClient();
+  const { requestSessionChange } = useSessionActions();
+  const variants = labVariants(session.labId).filter((lab) => client.labs.some((item) => item.id === lab.id));
+  if (variants.length < 2) {
+    return null;
+  }
+  return (
+    <div className="provider-switch" role="group" aria-label="Storage provider">
+      {variants.map((lab) => {
+        const active = lab.id === session.labId;
+        return (
+          <button
+            key={lab.id}
+            type="button"
+            className={`provider-option${active ? ' provider-option-active' : ''}`}
+            aria-pressed={active}
+            onClick={(event) => {
+              if (!active) {
+                requestSessionChange({ labId: lab.id }, { returnFocus: event.currentTarget });
+              }
+            }}
+          >
+            <Cloud aria-hidden="true" size={14} /> {getStorageProvider(lab.variant.provider).label}
+          </button>
+        );
+      })}
+      <span className="small muted">Each provider runs in its own session; switching starts a new one.</span>
+    </div>
+  );
 }
 
 function Identity({ storage, profile }) {
@@ -261,6 +298,7 @@ export function CloudPanel() {
 
   return (
     <div className="cloud-panel">
+      <ProviderSwitch session={session} />
       <Identity storage={storage} profile={profile} />
       {workloads.map((resource) => (
         <WorkloadStorage

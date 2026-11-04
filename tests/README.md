@@ -6,11 +6,11 @@ in for Docker results, and a mocked test never claims that an image builds.
 | Command | Scope | Execution | Runs in CI job |
 | --- | --- | --- | --- |
 | `npm test` / `npm run test:ci` | Original API routes (Jest, Supertest) | In-process Express | Test |
-| `npm run test:core` | Schemas, reducer, runtime, simulator, parser, missions, pipeline, checkpoints and migration, simulated S3 storage | Node, virtual clock | Test |
+| `npm run test:core` | Schemas, reducer, runtime, simulator, parser, missions, pipeline, checkpoints and migration, simulated S3 and Azure Blob storage | Node, virtual clock | Test |
 | `npm run test:web` | Workbench components, demo and local clients, terminal, persistence | jsdom, virtual clock, fake xterm | Test |
 | `npm run test:control` | Same-origin, CSRF, ownership, idempotency, SSE, recovery, runner stream | In-process Express, fake runner | Test |
 | `npm run test:runner` | Token, browser-origin refusal, diagnostics, probes, observations, ownership, metrics | In-process Express, fake Docker | Test |
-| `npm run test:e2e:demo` | Five viewports, all missions including the S3 storage missions, terminal, pipeline, persistence and checkpoint migration, recovery, keyboard-only | Static build in Chromium, backend traffic blocked | Demo E2E |
+| `npm run test:e2e:demo` | Five viewports, all missions including the S3 and Azure Blob storage missions and provider switching, terminal, pipeline, persistence and checkpoint migration, recovery, keyboard-only | Static build in Chromium, backend traffic blocked | Demo E2E |
 | `node scripts/check-playground-stack.js demo\|local` | Packaged boundaries: bindings, mounts, runner token, isolation | Real Compose stack | Playground stack |
 | `npm run test:integration:local` | M01-M03, real pipeline, controller crash recovery, runner outage, stress, security regressions | Real Docker daemon via the packaged portal | Playground stack |
 | `npm run test:e2e:local` | M01-M03 in the browser, runner outage, phone layout | Chromium against real Docker | Playground stack |

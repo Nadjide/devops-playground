@@ -92,13 +92,16 @@ shared mission surface:
 
 | Operation | Effect |
 | --- | --- |
-| `storage.namespace.create` / `list` / `delete` | Bucket (S3) lifecycle; deletion needs lab ownership, and S3 refuses non-empty buckets |
+| `storage.namespace.create` / `list` / `delete` | Bucket (S3) or container (Azure Blob) lifecycle; deletion needs lab ownership; S3 refuses non-empty buckets while Azure deletes a container with its blobs |
 | `storage.object.put` / `list` / `get` / `delete` | UTF-8 text objects, at most 64 KiB, flat keys only |
 | `storage.configure` | Point the workload at a namespace; only the session emulator endpoint is approved |
 | `storage.roundtrip.verify` | The workload writes a payload through its own configuration and reads it back |
 
-Provider profiles keep their own vocabulary and errors (`NoSuchBucket`,
-`BucketNotEmpty`, `InvalidBucketName`). Namespace names, endpoints, and
+Provider profiles keep their own vocabulary and errors: S3 (`NoSuchBucket`,
+`BucketNotEmpty`, `InvalidBucketName`; deleting a missing key succeeds) and
+Azure Blob (`ContainerNotFound`, `BlobNotFound`, `InvalidResourceName`;
+deleting a missing blob fails). The approved endpoints are `http://storage:5000`
+and `http://storage:10000/devstoreaccount1`. Namespace names, endpoints, and
 ownership are checked before any backend call. Sessions hold at most 8
 namespaces and 50 objects; the simulator keeps object text in the snapshot
 within a 128 KiB budget so checkpoints stay below 512 KiB, and reads return a

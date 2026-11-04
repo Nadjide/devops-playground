@@ -54,6 +54,46 @@ export const STORAGE_PROVIDER_PROFILES = Object.freeze({
       invalidName: (message) => ({ code: 'INVALID_BUCKET_NAME', status: 400, message: `InvalidBucketName: ${message}` }),
     }),
   }),
+  'azure-blob': Object.freeze({
+    id: 'azure-blob',
+    label: 'Azure Blob',
+    service: 'Azure Blob Storage',
+    namespaceTerm: 'container',
+    namespacesTerm: 'containers',
+    objectTerm: 'blob',
+    objectsTerm: 'blobs',
+    // Azurite's Blob service with the development account in the path.
+    endpoint: 'http://storage:10000/devstoreaccount1',
+    account: 'devstoreaccount1',
+    // Deleting a container deletes the blobs it holds.
+    deletesNonEmptyNamespace: true,
+    // Deleting a missing blob returns 404 BlobNotFound.
+    missingObjectDeleteSucceeds: false,
+    uri: (namespace, key) => `http://storage:10000/devstoreaccount1/${namespace}${key ? `/${key}` : ''}`,
+    validateNamespace(name) {
+      if (name.length < 3 || name.length > 63) {
+        return 'Container names must be from 3 through 63 characters long.';
+      }
+      if (!/^[a-z0-9-]+$/.test(name)) {
+        return 'Container names can contain only lowercase letters, numbers, and hyphens.';
+      }
+      if (!/^[a-z0-9]/.test(name) || name.endsWith('-')) {
+        return 'Container names must start with a letter or number and cannot end with a hyphen.';
+      }
+      if (name.includes('--')) {
+        return 'Every hyphen in a container name must be preceded and followed by a letter or number.';
+      }
+      return null;
+    },
+    errors: Object.freeze({
+      namespaceMissing: (namespace) => ({ code: 'CONTAINER_NOT_FOUND', status: 404, message: `ContainerNotFound: The specified container does not exist (${namespace}).` }),
+      namespaceExists: (namespace) => ({ code: 'CONTAINER_ALREADY_EXISTS', status: 409, message: `ContainerAlreadyExists: The specified container already exists (${namespace}).` }),
+      namespaceTaken: (namespace) => ({ code: 'CONTAINER_ALREADY_EXISTS', status: 409, message: `ContainerAlreadyExists: The specified container already exists (${namespace}).` }),
+      namespaceNotEmpty: (namespace) => ({ code: 'CONTAINER_NOT_EMPTY', status: 409, message: `The container ${namespace} is not empty.` }),
+      objectMissing: (namespace, key) => ({ code: 'BLOB_NOT_FOUND', status: 404, message: `BlobNotFound: The specified blob does not exist (${namespace}/${key}).` }),
+      invalidName: (message) => ({ code: 'INVALID_RESOURCE_NAME', status: 400, message: `InvalidResourceName: ${message}` }),
+    }),
+  }),
 });
 
 export function getStorageProvider(providerId) {

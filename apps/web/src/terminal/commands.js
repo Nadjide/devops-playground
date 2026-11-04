@@ -68,10 +68,25 @@ function storageOutput(view, result) {
     case 'aws.s3.rm':
       return [line(`delete: s3://${result.namespace}/${result.key}`, 'success')];
     case 'aws.s3.cp':
+    case 'az.blob.download':
       return [
         ...result.content.split('\n').map((text) => line(text)),
         ...(result.truncated ? [line(`[preview shows the first 4 KiB of ${result.bytes} bytes]`, 'muted')] : []),
       ];
+    case 'az.container.list':
+      return result.namespaces.length
+        ? table([['Name', 'Owned by lab'], ...result.namespaces.map((item) => [item.name, item.owned ? 'yes' : 'no'])])
+          .map((text, index) => line(text, index === 0 ? 'muted' : 'default'))
+        : [line('[]', 'muted')];
+    case 'az.container.create':
+      return [line('{ "created": true }', 'success')];
+    case 'az.blob.list':
+      return result.objects.length
+        ? table([['Name', 'Length', 'Last modified'], ...result.objects.map((item) => [item.key, String(item.bytes), item.updatedAt.slice(0, 19)])])
+          .map((text, index) => line(text, index === 0 ? 'muted' : 'default'))
+        : [line('[]', 'muted')];
+    case 'az.blob.delete':
+      return [line(`Deleted blob ${result.key}`, 'success')];
     case 'curl/storage-check':
       return [line(JSON.stringify({ ok: true, namespace: result.namespace, key: result.key, bytes: result.bytes, sha256: result.sha256 }))];
     default:

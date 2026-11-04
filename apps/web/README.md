@@ -50,8 +50,11 @@ Storage labs show the provider, backend, approved endpoint, and source of every
 result. The panel configures the service's bucket, runs the service storage
 check, creates and deletes buckets (deletion asks for confirmation), and
 writes, lists, reads, and deletes text objects. Labs without storage show an
-explanation instead. In the terminal, `aws s3 ls|mb|cp ... -|rm` and
-`curl http://api:3000/storage-check` map to the same operations.
+explanation instead. Missions with provider variants show an AWS S3 / Azure Blob
+switch; switching asks for confirmation and starts a new session. In the
+terminal, `aws s3 ls|mb|cp ... -|rm`, `az storage container list|create`,
+`az storage blob list|download|delete`, and `curl http://api:3000/storage-check`
+map to the same operations; connection options are refused.
 
 ## Terminal and Logs
 

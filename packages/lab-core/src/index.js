@@ -28,7 +28,7 @@ export { createLabSession } from './engine/lab-session.js';
 export { createLabRuntime, READ_ONLY_OPERATIONS, RUNTIME_LIMITS } from './engine/runtime.js';
 export { createSystemClock, createVirtualClock, delay } from './engine/clock.js';
 export { AbortedError, DomainError, OperationFailure } from './engine/errors.js';
-export { availableLabs, labCatalog, getLabManifest } from './missions/catalog.js';
+export { availableLabs, labCatalog, getLabManifest, labVariants } from './missions/catalog.js';
 export { evaluateMission } from './missions/evaluate.js';
 export { FRESHNESS_MS, PREDICATES } from './missions/predicates.js';
 export {

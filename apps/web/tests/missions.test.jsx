@@ -20,7 +20,7 @@ describe('mission catalog and progress', () => {
     await renderApp();
     const select = screen.getByRole('combobox', { name: 'Mission' });
     expect(within(select).getAllByRole('option').map((option) => option.value))
-      .toEqual(['stopped-container', 'wrong-port', 'broken-release', 'storage-provision', 'storage-config', 'free-exploration']);
+      .toEqual(['stopped-container', 'wrong-port', 'broken-release', 'storage-provision', 'blob-provision', 'storage-config', 'blob-config', 'free-exploration']);
   });
 
   it('completes M01 through visible controls and shows the evidence', async () => {

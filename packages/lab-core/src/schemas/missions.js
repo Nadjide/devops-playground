@@ -4,6 +4,7 @@ import {
   sourceSchema, timestampSchema,
 } from './shared.js';
 import { operationTypeSchema } from './operations.js';
+import { providerSchema } from './storage.js';
 
 export const PREDICATE_IDS = Object.freeze([
   'evidence.logs-read', 'service.running', 'service.health-verified',
@@ -39,6 +40,8 @@ export const labManifestSchema = z.strictObject({
       'Duplicate objective ID.'),
   hints: guidanceSchema.max(5).optional(),
   solution: guidanceSchema.max(10).optional(),
+  // Provider variants of one learning outcome share a group; switching starts a new session.
+  variant: z.strictObject({ group: slugSchema, provider: providerSchema }).optional(),
 }).superRefine((lab, context) => {
   const exploration = lab.kind === 'exploration';
   if (!exploration && lab.objectives.length === 0) {

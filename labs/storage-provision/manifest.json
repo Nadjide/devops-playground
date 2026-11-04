@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "storage-provision",
   "kind": "mission",
-  "title": "Provision storage for a service",
+  "title": "Provision storage for a service (AWS S3)",
   "description": "The reports service is configured to write to an S3 bucket that does not exist yet. Create it, prove you can write and read an object, then let the service verify its own round trip.",
   "difficulty": "beginner",
   "estimatedMinutes": 8,
@@ -59,5 +59,9 @@
     "aws s3 mb s3://lab-reports",
     "Cloud panel: write notes.txt with any text to lab-reports, then read notes.txt",
     "curl http://api:3000/storage-check"
-  ]
+  ],
+  "variant": {
+    "group": "provision-storage",
+    "provider": "aws-s3"
+  }
 }

@@ -3,7 +3,7 @@ import {
   generationSchema, identifierSchema, revisionSchema, sourceSchema, timestampSchema,
 } from './shared.js';
 
-export const STORAGE_PROVIDERS = Object.freeze(['aws-s3']);
+export const STORAGE_PROVIDERS = Object.freeze(['aws-s3', 'azure-blob']);
 
 export const STORAGE_LIMITS = Object.freeze({
   namespaces: 8,

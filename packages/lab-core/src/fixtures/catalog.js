@@ -122,54 +122,46 @@ const fixtures = {
       runs: [failedCandidateRun(base, source)],
     }),
   },
-  's3-unprovisioned': {
-    id: 's3-unprovisioned',
-    label: 'Reports service without its S3 bucket',
+  ...storageFixtures('aws-s3', { prefix: 's3', label: 'S3 bucket' }),
+  ...storageFixtures('azure-blob', { prefix: 'blob', label: 'Blob container' }),
+};
+
+/**
+ * The same two incidents for each provider, so both learning paths reach the
+ * same outcome in their own terminology: a missing namespace (M04) and a
+ * service configured for a misspelled one (M05).
+ */
+function storageFixtures(provider, { prefix, label }) {
+  const profile = getStorageProvider(provider);
+  const base = (id, fixtureLabel, configured, seed) => ({
+    id,
+    label: fixtureLabel,
     expectedVersion: '1.0.0',
     expectedNamespace: 'lab-reports',
     candidates: Object.freeze([]),
     services: [{
       serviceId: 'api', image: STORAGE_API, appPort: 3000, expectedProbePort: 3000, state: 'running', exitCode: null,
-      storage: { namespace: 'lab-reports', endpoint: getStorageProvider('aws-s3').endpoint },
+      storage: { namespace: configured, endpoint: profile.endpoint },
     }],
-    storage: {
-      provider: 'aws-s3',
-      namespaces: [{ name: FOREIGN_NAMESPACE, owned: false }],
-      objects: [FOREIGN_OBJECT],
-    },
-    history: storageHistory({
-      provider: 'aws-s3', namespace: 'lab-reports',
-      error: getStorageProvider('aws-s3').errors.namespaceMissing('lab-reports').message,
-    }),
+    storage: { provider, ...seed },
+    history: storageHistory({ provider, namespace: configured, error: profile.errors.namespaceMissing(configured).message }),
     // Storage labs have no delivery pipeline.
     pipeline: () => ({ knownGood: null, deployed: null, runs: [] }),
-  },
-  's3-misconfigured': {
-    id: 's3-misconfigured',
-    label: 'Reports service pointed at the wrong S3 bucket',
-    expectedVersion: '1.0.0',
-    expectedNamespace: 'lab-reports',
-    candidates: Object.freeze([]),
-    services: [{
-      serviceId: 'api', image: STORAGE_API, appPort: 3000, expectedProbePort: 3000, state: 'running', exitCode: null,
-      storage: { namespace: 'lab-report', endpoint: getStorageProvider('aws-s3').endpoint },
-    }],
-    storage: {
-      provider: 'aws-s3',
+  });
+  return {
+    [`${prefix}-unprovisioned`]: base(`${prefix}-unprovisioned`, `Reports service without its ${label}`, 'lab-reports', {
+      namespaces: [{ name: FOREIGN_NAMESPACE, owned: false }],
+      objects: [FOREIGN_OBJECT],
+    }),
+    [`${prefix}-misconfigured`]: base(`${prefix}-misconfigured`, `Reports service pointed at the wrong ${label}`, 'lab-report', {
       namespaces: [{ name: 'lab-reports', owned: true }, { name: FOREIGN_NAMESPACE, owned: false }],
       objects: [
         { namespace: 'lab-reports', key: 'daily-summary.txt', content: 'Daily summary\nrequests=1824\nerrors=0\n' },
         FOREIGN_OBJECT,
       ],
-    },
-    history: storageHistory({
-      provider: 'aws-s3', namespace: 'lab-report',
-      error: getStorageProvider('aws-s3').errors.namespaceMissing('lab-report').message,
     }),
-    // Storage labs have no delivery pipeline.
-    pipeline: () => ({ knownGood: null, deployed: null, runs: [] }),
-  },
-};
+  };
+}
 
 export const fixtureCatalog = Object.freeze(Object.keys(fixtures));
 
