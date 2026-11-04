@@ -32,10 +32,11 @@ export function createCommandHistory(limit = HISTORY_LIMIT) {
  * Terminal presentation state that outlives the xterm instance, so switching
  * panels does not lose output. Clearing it never touches domain events.
  */
-export function createTerminalState() {
+export function createTerminalState({ history = createCommandHistory(), sessionId = null } = {}) {
   let chunks = [];
   return {
-    history: createCommandHistory(),
+    sessionId,
+    history,
     append(chunk) {
       chunks = [...chunks, chunk].slice(-TRANSCRIPT_LIMIT);
     },

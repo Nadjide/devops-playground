@@ -33,7 +33,9 @@
     "playground:down": "node scripts/playground.js down",
     "test:integration:local": "node --test --test-concurrency=1 tests/integration/local/missions.test.mjs tests/integration/local/pipeline.test.mjs tests/integration/local/recovery.test.mjs tests/integration/local/security.test.mjs",
     "test:e2e:local": "node scripts/e2e-local.js",
-    "playground:cleanup": "node scripts/playground.js cleanup"
+    "playground:cleanup": "node scripts/playground.js cleanup",
+    "verify:playground": "node scripts/verify-playground.js",
+    "scan:secrets": "node scripts/scan-secrets.js"
   },
   "keywords": [
     "devops",

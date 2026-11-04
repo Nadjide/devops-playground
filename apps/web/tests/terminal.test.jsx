@@ -153,6 +153,24 @@ describe('terminal panel', () => {
     expect(terminal.output).toMatch(/SERVICE[\s\S]*running/);
   });
 
+  it('starts a new transcript for a new session but keeps command history', async () => {
+    const { advance, client } = await renderApp();
+    const first = await vi.waitFor(() => xterm.instances[0] ?? Promise.reject(new Error('not mounted')));
+    act(() => {
+      first.handler('docker logs api --tail 1');
+      first.handler('\r');
+    });
+    await advance(1000);
+    await vi.waitFor(() => expect(first.output).toContain('HTTP server closed'));
+
+    await act(() => client.startSession({ labId: 'wrong-port' }));
+    const second = await vi.waitFor(() => xterm.instances.at(-1) !== first ? xterm.instances.at(-1) : Promise.reject(new Error('not remounted')));
+    expect(first.disposed).toBe(true);
+    expect(second.output).not.toContain('HTTP server closed');
+    act(() => second.handler('\u001b[A'));
+    expect(second.output).toContain('docker logs api --tail 1');
+  });
+
   it('rejects multiline paste and strips control characters from input', async () => {
     await renderApp();
     const terminal = await vi.waitFor(() => xterm.instances[0] ?? Promise.reject(new Error('not mounted')));
