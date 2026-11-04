@@ -123,8 +123,10 @@ export function createBrowser() {
   return browser;
 }
 
-export function ownedContainers(sessionId) {
+/** Containers labeled with the session; pass `role` to exclude, e.g., disposable pipeline test containers. */
+export function ownedContainers(sessionId, { role } = {}) {
   return docker('ps', '-a', '--filter', `label=devops-playground.session=${sessionId}`, '--filter', 'label=devops-playground.managed=true',
+    ...(role ? ['--filter', `label=devops-playground.role=${role}`] : []),
     '--format', '{{.ID}} {{.Label "devops-playground.installation"}} {{.Names}} {{.State}}').split('\n').filter(Boolean)
     .map((line) => {
       const [id, installation, name, state] = line.split(' ');

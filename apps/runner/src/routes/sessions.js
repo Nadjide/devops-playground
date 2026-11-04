@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { getFixture, getLabManifest, operationRequestSchema, resourceSchema } from '@devops-playground/lab-core';
+import { getFixture, getLabManifest, operationRequestSchema, pipelineSchema, resourceSchema } from '@devops-playground/lab-core';
 import { errorBody } from '../http.js';
 import { DriverFailure } from '../docker/lab-driver.js';
 import { classifyDockerError } from '../docker/diagnostics.js';
@@ -16,6 +16,7 @@ const setupSchema = z.strictObject(sessionContext);
 const executeSchema = z.strictObject({
   ...sessionContext,
   resources: z.array(resourceSchema).max(3),
+  pipeline: pipelineSchema.optional(),
   operation: z.strictObject({
     id: identifier,
     type: z.string(),
@@ -47,7 +48,7 @@ function failureLine(error) {
 }
 
 /** Stream newline-delimited JSON records while the driver works. */
-async function stream(req, res, work) {
+async function stream(req, res, work, state = {}) {
   res.status(200).type('application/x-ndjson').set('Cache-Control', 'no-store');
   let open = true;
   // The response closes when the controller disconnects (cancellation); the
@@ -55,6 +56,7 @@ async function stream(req, res, work) {
   res.on('close', () => {
     open = false;
   });
+  state.isOpen = () => open;
   const write = (record) => {
     if (open && !res.writableEnded) {
       res.write(`${JSON.stringify(record)}\n`);
@@ -68,7 +70,7 @@ async function stream(req, res, work) {
   res.end();
 }
 
-export function createSessionRouter({ driver }) {
+export function createSessionRouter({ driver, pipeline }) {
   const router = express.Router();
 
   function parse(schema, req, res) {
@@ -106,9 +108,13 @@ export function createSessionRouter({ driver }) {
       res.status(400).json(errorBody('INVALID_OPERATION', 'The operation or its resources are invalid.'));
       return;
     }
+    const state = {};
     await stream(req, res, async (write) => {
       approvedFixture(body.labId, body.fixtureId);
-      const session = { id: req.params.sessionId, generation: body.generation, labId: body.labId, fixtureId: body.fixtureId, resources: body.resources };
+      const session = {
+        id: req.params.sessionId, generation: body.generation, labId: body.labId, fixtureId: body.fixtureId,
+        resources: body.resources, pipeline: body.pipeline ?? { knownGood: null, deployed: null, runs: [] },
+      };
       const out = {
         emit: (type, payload, { source = 'docker' } = {}) => write({ kind: 'emit', type, payload, source }),
         logs: (lines) => {
@@ -117,8 +123,15 @@ export function createSessionRouter({ driver }) {
           }
         },
       };
-      return driver.execute({ session, operation: { id: body.operation.id, ...request.data }, out });
-    });
+      const operation = { id: body.operation.id, ...request.data };
+      if (operation.type === 'pipeline.run' || operation.type === 'pipeline.rollback') {
+        if (!pipeline) {
+          throw new DriverFailure('UNSUPPORTED_OPERATION', 'Pipelines are not available on this runner.');
+        }
+        return pipeline.execute({ session, operation, out, isCancelled: () => !state.isOpen() });
+      }
+      return driver.execute({ session, operation, out });
+    }, state);
   });
 
   router.post('/:sessionId/teardown', async (req, res) => {

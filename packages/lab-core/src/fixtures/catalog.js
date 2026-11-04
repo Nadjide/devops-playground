@@ -11,10 +11,10 @@ const verifiedBaseline = () => ({
 });
 
 /** A recorded deployment of 1.1.0: tests and build passed, runtime verification failed. */
-function failedCandidateRun(base) {
+function failedCandidateRun(base, source) {
   const at = (offset) => new Date(base + offset * 1000).toISOString();
   const stage = (id, start, end, status, logs, exitCode = 0) => ({
-    id, status, startedAt: at(start), finishedAt: at(end), durationMs: (end - start) * 1000, exitCode, logs, source: 'simulator',
+    id, status, startedAt: at(start), finishedAt: at(end), durationMs: (end - start) * 1000, exitCode, logs, source,
   });
   const candidate = getReleaseById('api-1-1-0');
   return {
@@ -90,10 +90,10 @@ const fixtures = {
       ...workloadLines.shutdown().map((line) => ({ ...line, offset: -400 })),
       ...workloadLines.crash(release).map((line) => ({ ...line, offset: -397 })),
     ],
-    pipeline: ({ base }) => ({
+    pipeline: ({ base, source }) => ({
       knownGood: releaseRef(getReleaseById('api-1-0-0')),
       deployed: { ...releaseRef(getReleaseById('api-1-1-0')), status: 'failed' },
-      runs: [failedCandidateRun(base)],
+      runs: [failedCandidateRun(base, source)],
     }),
   },
 };
@@ -152,7 +152,10 @@ export function createFixtureHistory(fixtureId, { now }) {
     })));
 }
 
-/** Release bookkeeping recorded before the session started. */
-export function createFixturePipeline(fixtureId, { now }) {
-  return getFixture(fixtureId).pipeline({ base: Date.parse(now) });
+/**
+ * Release bookkeeping recorded before the session started. Real drivers pass
+ * `source: null` because that history was not observed in the session.
+ */
+export function createFixturePipeline(fixtureId, { now, source = 'simulator' }) {
+  return getFixture(fixtureId).pipeline({ base: Date.parse(now), source });
 }

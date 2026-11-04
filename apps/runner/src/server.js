@@ -3,12 +3,14 @@ import { createRunnerApp } from './app.js';
 import { loadRunnerConfig } from './config.js';
 import { loadInstallationId } from './installation.js';
 import { createLabDriver } from './docker/lab-driver.js';
+import { createPipelineExecutor } from './docker/pipeline.js';
 
 const config = loadRunnerConfig();
 const docker = new Docker({ socketPath: config.socketPath });
 const installationId = loadInstallationId(config.installationFile);
 const driver = createLabDriver({ docker, installationId });
-const app = createRunnerApp({ config, docker, driver });
+const pipeline = createPipelineExecutor({ docker, installationId, driver });
+const app = createRunnerApp({ config, docker, driver, pipeline });
 
 const server = app.listen(config.port, config.host, () => {
   // Never log the token or the environment.

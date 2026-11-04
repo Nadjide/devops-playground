@@ -37,6 +37,17 @@ filesystem, CPU, memory, and process limits, no capabilities, no published
 ports, and an internal per-session network. Probes use the fixed service alias
 and the lab's expected port only.
 
+## Pipeline
+
+`pipeline.run` deploys an approved candidate from the fixture catalog and
+`pipeline.rollback` recreates the recorded known-good release. Stages run with
+fixed inputs: the test stage copies the allowlisted fixture files into a
+disposable networkless container and runs `npm test`; the build stage builds
+the approved image; deploy replaces the owned workload; verify probes health
+and version for up to 60 seconds. Stage logs, exit codes, and durations are
+recorded through the shared pipeline recorder, and closing the stream cancels
+the run before deploy.
+
 Daemon failures map to `DOCKER_UNAVAILABLE`, `DOCKER_PERMISSION_DENIED`,
 `DOCKER_CONTEXT_UNSUPPORTED` (Windows containers), or `DOCKER_ERROR`, with
 actionable messages that never include secrets.
