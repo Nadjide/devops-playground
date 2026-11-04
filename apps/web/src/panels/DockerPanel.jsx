@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/StatusBadge.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { RecentOperations } from '../components/RecentOperations.jsx';
 import { formatTime, sourceLabel } from '../components/format.js';
+import { ObservationAge } from '../components/ObservationAge.jsx';
 
 const actions = [
   { type: 'container.start', label: 'Start', icon: Play, tone: 'success' },
@@ -113,7 +114,7 @@ function ResourceRow({ resource }) {
         <div><dt>App port</dt><dd className="mono">{resource.desired.appPort}</dd></div>
         <div>
           <dt>Observed</dt>
-          <dd className="small">{formatTime(resource.observed.observedAt)} · {sourceLabel(resource.observed.source)}</dd>
+          <dd className="small"><ObservationAge at={resource.observed.observedAt} /> · {sourceLabel(resource.observed.source)}</dd>
         </div>
       </dl>
       <div className="resource-actions" role="group" aria-label={`${resource.serviceId} actions`}>

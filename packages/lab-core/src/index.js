@@ -29,4 +29,7 @@ export {
 } from './commands/parser.js';
 export { PIPELINE_LIMITS, pipelineRunSchema, pipelineSchema, STAGE_IDS } from './schemas/pipeline.js';
 export { createPipelineRecorder, createRunRecord, isCancellable } from './pipeline/recorder.js';
+export {
+  CHECKPOINT_VERSION, hydrateSession, MAX_CHECKPOINT_BYTES, parseCheckpoint, serializeCheckpoint,
+} from './checkpoint/checkpoint.js';
 export { createSimulatorExecutor, SIMULATED_OPERATIONS, SIMULATED_TIMINGS } from './simulator/executor.js';

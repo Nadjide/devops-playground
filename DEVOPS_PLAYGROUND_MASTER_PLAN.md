@@ -7,7 +7,7 @@
 | Product owner | Nadjide Omar |
 | Repository | `https://github.com/Nadjide/devops-playground` |
 | Baseline branch | `main` |
-| Current delivery stage | L06 in review; merges delegated for L01-L17 |
+| Current delivery stage | L07 in review (Phase A acceptance); merges delegated for L01-L17 |
 
 ## Reading Order
 
@@ -2745,8 +2745,8 @@ The ledger below describes the current verified execution state.
 | L03 | merged | feat/lot-03-docker-simulator | [PR #3](https://github.com/Nadjide/devops-playground/pull/3) | 118 domain tests, 19 workbench tests, 9 Playwright checks; [CI run 41833064587](https://github.com/Nadjide/devops-playground/actions/runs/41833064587); squash commit `35984bc` |
 | L04 | merged | feat/lot-04-terminal-and-logs | [PR #4](https://github.com/Nadjide/devops-playground/pull/4) | 175 domain tests, 29 workbench tests, 12 Playwright checks; [CI run 41834430821](https://github.com/Nadjide/devops-playground/actions/runs/41834430821); squash commit `55bf2eb` |
 | L05 | merged | feat/lot-05-guided-missions | [PR #5](https://github.com/Nadjide/devops-playground/pull/5) | 194 domain tests, 37 workbench tests, 16 Playwright checks; [CI run 41836409932](https://github.com/Nadjide/devops-playground/actions/runs/41836409932); squash commit `91b8501` |
-| L06 | pr-open | feat/lot-06-simulated-pipeline | Pending | 207 domain tests, 41 workbench tests, 18 Playwright demo checks |
-| L07 | planned | Pending | Pending | Pending |
+| L06 | merged | feat/lot-06-simulated-pipeline | [PR #6](https://github.com/Nadjide/devops-playground/pull/6) | 207 domain tests, 41 workbench tests, 18 Playwright checks; [CI run 41850217454](https://github.com/Nadjide/devops-playground/actions/runs/41850217454); squash commit `4bf3b54` |
+| L07 | pr-open | feat/lot-07-demo-recovery | Pending | 219 domain tests, 51 workbench tests, 24 Playwright demo checks, Phase A matrix in section 26.10 |
 | L08 | planned | Pending | Pending | Pending |
 | L09 | planned | Pending | Pending | Pending |
 | L10 | planned | Pending | Pending | Pending |
@@ -2913,6 +2913,38 @@ enforces the fixed stage graph for every driver. Decisions recorded here:
 and `pipeline.cancel` was added as a control operation that is accepted only
 before the deploy stage starts; a second pipeline submission while one is
 active returns `PIPELINE_BUSY`.
+
+### 26.10 L07 Local Verification and Phase A Acceptance Evidence
+
+Verified on 2026-11-04 in the owner's Windows environment with Node.js 22.18.0
+and Playwright 1.64.1 Chromium. Every Playwright check runs against the static
+production build with all non-origin and `/api` requests aborted.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed with zero warnings |
+| `npm test` | Passed, 3 original API tests |
+| `npm run test:playground` | Passed, 219 domain tests and 51 workbench tests |
+| `npm run build:playground` | Passed; static output in `apps/web/dist` with xterm in a lazy chunk |
+| `npm run test:e2e:demo` | Passed, 24 checks; persistence and pipeline specs passed 3 repetitions |
+
+| Phase A criterion (section 23.1) | Evidence |
+| --- | --- |
+| Static build starts without a backend | Every demo Playwright test blocks backend traffic and asserts none was attempted |
+| Project name and Demo mode visible first | `workbench.spec.mjs` at 1440, 1024, 768, 390, and 320 px |
+| M01, M02, M03 selectable and completable | `missions.spec.mjs`, `pipeline.spec.mjs`, `phase-a.spec.mjs`, domain mission tests |
+| Terminal and UI share operations | Terminal/button equivalence unit test; terminal recovery Playwright flow |
+| Panels reflect coherent state | Shared snapshot revision test; Docker, Monitoring, Pipeline, and Logs flows |
+| Simulation provenance clear | Demo mode pill, Simulated source labels, Simulated pipeline label |
+| Reset produces a new generation | Runtime reset tests; reset Playwright flow and reload after reset |
+| Compatible progress survives reload | `phase-a.spec.mjs` reload flow; checkpoint round-trip tests |
+| Corrupt, oversized, incompatible state handled | Checkpoint parse tests; recovery banner unit and Playwright tests; quota and denied storage |
+| Desktop/mobile and keyboard flows pass | Viewport matrix, phone flows for M01-M03, keyboard-only M01 |
+| Phase A CI on the exact candidate | Required `Test`, `Demo E2E`, and `Docker` checks on the L07 PR head |
+
+Fixed in this lot: the terminal no longer traps keyboard focus (Tab leaves
+xterm), CSS tooltip text no longer leaks into accessible names, and pending
+checkpoints are flushed on `pagehide` so a reload right after an action keeps it.
 
 ## 27. Decisions and Scope Change Control
 

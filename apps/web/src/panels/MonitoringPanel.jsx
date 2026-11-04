@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState.jsx';
 import { StatusBadge } from '../components/StatusBadge.jsx';
 import { RecentOperations } from '../components/RecentOperations.jsx';
 import { formatTime, sourceLabel } from '../components/format.js';
+import { ObservationAge } from '../components/ObservationAge.jsx';
 
 function probeOutcome(probe) {
   return probe.ok ? `HTTP ${probe.statusCode}` : (probe.statusCode ? `HTTP ${probe.statusCode}` : probe.error);
@@ -59,7 +60,7 @@ export function MonitoringPanel() {
           {health ? (
             <>
               <p className="metric-value"><StatusBadge value={health.ok ? 'healthy' : 'unhealthy'} label={health.ok ? 'Available' : 'Unavailable'} /></p>
-              <p className="muted small">{probeOutcome(health)} · {formatTime(health.observedAt)} · {sourceLabel(health.source)}</p>
+              <p className="muted small">{probeOutcome(health)} · <ObservationAge at={health.observedAt} /> · {sourceLabel(health.source)}</p>
             </>
           ) : (
             <>
@@ -80,7 +81,7 @@ export function MonitoringPanel() {
         <article className="metric-card" aria-label="Observed version">
           <h3><Tag aria-hidden="true" size={15} /> Observed version</h3>
           <p className="metric-value mono">{version ? version.body.version : 'Unavailable'}</p>
-          <p className="muted small">{version ? `${formatTime(version.observedAt)} · ${sourceLabel(version.source)}` : 'Read from GET /version once probed.'}</p>
+          <p className="muted small">{version ? <><ObservationAge at={version.observedAt} /> · {sourceLabel(version.source)}</> : 'Read from GET /version once probed.'}</p>
         </article>
       </div>
 
