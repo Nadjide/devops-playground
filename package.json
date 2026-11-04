@@ -6,7 +6,9 @@
   "private": true,
   "workspaces": [
     "packages/lab-core",
-    "apps/web"
+    "apps/web",
+    "apps/control",
+    "apps/runner"
   ],
   "engines": {
     "node": ">=22.18.0"
@@ -19,10 +21,16 @@
     "lint": "eslint . --max-warnings 0",
     "test:core": "npm run test --workspace @devops-playground/lab-core",
     "test:web": "npm run test --workspace @devops-playground/web",
-    "test:playground": "npm run test:core && npm run test:web",
+    "test:playground": "npm run test:core && npm run test:web && npm run test:control && npm run test:runner",
     "dev:playground": "npm run dev --workspace @devops-playground/web",
     "build:playground": "npm run build --workspace @devops-playground/web",
-    "test:e2e:demo": "npm run build:playground && playwright test --project=demo"
+    "test:e2e:demo": "npm run build:playground && playwright test --project=demo",
+    "test:control": "npm run test --workspace @devops-playground/control",
+    "test:runner": "npm run test --workspace @devops-playground/runner",
+    "playground:demo": "node scripts/playground.js demo",
+    "playground:local": "node scripts/playground.js local",
+    "playground:status": "node scripts/playground.js status",
+    "playground:down": "node scripts/playground.js down"
   },
   "keywords": [
     "devops",

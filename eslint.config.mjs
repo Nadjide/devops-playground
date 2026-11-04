@@ -41,8 +41,12 @@ export default [
     },
   },
   {
-    files: ['apps/web/vite.config.js', 'playwright.config.mjs'],
+    files: ['apps/web/vite.config.js', 'playwright.config.mjs', 'apps/control/**/*.js', 'apps/runner/**/*.js'],
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['scripts/**/*.js'],
+    languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
   },
   {
     // Playwright specs run in Node; page.evaluate callbacks run in the browser.

@@ -5,9 +5,8 @@ import { useSessionActions } from '../session/SessionActions.jsx';
 import { SessionMenu } from './SessionMenu.jsx';
 
 const connectionLabels = {
-  connecting: 'Starting simulator',
-  ready: 'Simulator ready',
-  disconnected: 'Session unavailable',
+  demo: { connecting: 'Starting simulator', ready: 'Simulator ready', disconnected: 'Session unavailable' },
+  local: { connecting: 'Connecting to runner', ready: 'Runner connected', reconnecting: 'Reconnecting', disconnected: 'Runner unavailable' },
 };
 
 const persistenceLabels = {
@@ -35,7 +34,7 @@ export function TopBar() {
   const state = useSessionState();
   const { requestSessionChange } = useSessionActions();
   const selectRef = useRef(null);
-  const labId = state.session?.labId ?? client.selection().labId;
+  const labId = state.session?.labId ?? client.selection().labId ?? '';
 
   return (
     <header className="topbar">
@@ -46,12 +45,12 @@ export function TopBar() {
       <div className="chrome-status" aria-label="Session status">
         <span className="mode-pill" title={`Execution backend: ${client.capabilities.backend}`}>
           <FlaskConical aria-hidden="true" size={14} />
-          <span>Demo mode</span>
-          <span className="mode-detail">simulated</span>
+          <span>{client.mode === 'local' ? 'Local Docker' : 'Demo mode'}</span>
+          <span className="mode-detail">{client.mode === 'local' ? 'real' : 'simulated'}</span>
         </span>
         <span className={`connection connection-${state.connection}`} role="status">
           <Radio aria-hidden="true" size={14} />
-          {connectionLabels[state.connection] ?? state.connection}
+          {connectionLabels[client.mode]?.[state.connection] ?? state.connection}
         </span>
         <PersistenceIndicator persistence={state.persistence} />
       </div>
@@ -61,12 +60,13 @@ export function TopBar() {
           <select
             ref={selectRef}
             value={labId}
-            disabled={state.status === 'loading'}
+            disabled={state.status === 'loading' || client.labs.length === 0}
             onChange={(event) => {
               // The select keeps the active lab until the change is confirmed.
               requestSessionChange({ labId: event.target.value }, { returnFocus: selectRef.current });
             }}
           >
+            {client.labs.length === 0 ? <option value="">No lab available</option> : null}
             {client.labs.map((lab) => <option key={lab.id} value={lab.id}>{lab.title}</option>)}
           </select>
         </label>

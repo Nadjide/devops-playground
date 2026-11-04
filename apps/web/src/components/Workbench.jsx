@@ -194,6 +194,10 @@ export function Workbench() {
     );
   }
 
+  if (state.status === 'unavailable') {
+    return <LocalDiagnostics diagnostics={state.diagnostics} onRetry={() => client.retry()} />;
+  }
+
   if (state.status === 'error') {
     return (
       <div className="state-screen" role="alert">
@@ -209,6 +213,27 @@ export function Workbench() {
       <SessionBanner />
       {isDesktop ? <DesktopWorkbench /> : <CompactWorkbench />}
     </>
+  );
+}
+
+function LocalDiagnostics({ diagnostics, onRetry }) {
+  const docker = diagnostics?.docker;
+  const runner = diagnostics?.runner;
+  return (
+    <main className="state-screen diagnostics" aria-labelledby="diagnostics-title">
+      <h2 id="diagnostics-title">Local Docker diagnostics</h2>
+      <dl className="diagnostics-list">
+        <div><dt>Controller</dt><dd>Healthy (local mode)</dd></div>
+        <div><dt>Runner</dt><dd>{runner?.status === 'connected' ? 'Connected' : `Unavailable: ${runner?.error?.message ?? 'not reachable'}`}</dd></div>
+        <div>
+          <dt>Docker</dt>
+          <dd>{docker?.available ? `Engine ${docker.serverVersion} (API ${docker.apiVersion})` : (docker?.error?.message ?? 'Not checked')}</dd>
+        </div>
+        <div><dt>Labs</dt><dd>{diagnostics?.labs?.length ? `${diagnostics.labs.length} available` : 'No local lab can run on this backend yet.'}</dd></div>
+      </dl>
+      <p className="small">Local execution never falls back to simulation. The browser demo stays available from the static build.</p>
+      <button type="button" className="button" onClick={onRetry}>Check again</button>
+    </main>
   );
 }
 
