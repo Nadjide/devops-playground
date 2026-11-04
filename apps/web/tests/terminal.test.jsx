@@ -121,6 +121,9 @@ describe('terminal panel', () => {
       return xterm.instances[0];
     });
     expect(terminal.options).toMatchObject({ scrollback: 1000, screenReaderMode: true });
+    // Tab is left to the browser so keyboard focus can leave the terminal.
+    expect(terminal.keyHandler({ key: 'Tab' })).toBe(false);
+    expect(terminal.keyHandler({ key: 'a' })).toBe(true);
     act(() => {
       terminal.handler('docker start api');
       terminal.handler('\r');

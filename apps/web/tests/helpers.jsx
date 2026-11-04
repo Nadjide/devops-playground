@@ -2,6 +2,7 @@ import { act, render } from '@testing-library/react';
 import { createVirtualClock } from '@devops-playground/lab-core';
 import { App } from '../src/App.jsx';
 import { createDemoClient } from '../src/session/demo-client.js';
+import { createMemoryStorage } from '../src/session/persistence.js';
 
 export function createTestClient(options = {}) {
   let counter = 0;
@@ -10,6 +11,7 @@ export function createTestClient(options = {}) {
     clock,
     nextId: () => `id-${String(++counter).padStart(4, '0')}`,
     onError: () => {},
+    storage: createMemoryStorage(),
     ...options,
   });
   client.clock = clock;

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Boxes, FlaskConical, Radio } from 'lucide-react';
+import { Boxes, FlaskConical, Radio, Save, SaveOff } from 'lucide-react';
 import { useSessionClient, useSessionState } from '../session/SessionContext.jsx';
 import { useSessionActions } from '../session/SessionActions.jsx';
 import { SessionMenu } from './SessionMenu.jsx';
@@ -9,6 +9,26 @@ const connectionLabels = {
   ready: 'Simulator ready',
   disconnected: 'Session unavailable',
 };
+
+const persistenceLabels = {
+  idle: 'Not saved yet',
+  saved: 'Progress saved locally',
+  paused: 'Saving paused',
+  unavailable: 'Progress not saved',
+};
+
+function PersistenceIndicator({ persistence }) {
+  if (!persistence) {
+    return null;
+  }
+  const Icon = persistence.status === 'saved' || persistence.status === 'idle' ? Save : SaveOff;
+  return (
+    <span className={`persistence persistence-${persistence.status}`} title={persistence.message ?? 'Demo progress is kept in this browser only.'}>
+      <Icon aria-hidden="true" size={13} />
+      {persistenceLabels[persistence.status]}
+    </span>
+  );
+}
 
 export function TopBar() {
   const client = useSessionClient();
@@ -33,6 +53,7 @@ export function TopBar() {
           <Radio aria-hidden="true" size={14} />
           {connectionLabels[state.connection] ?? state.connection}
         </span>
+        <PersistenceIndicator persistence={state.persistence} />
       </div>
       <div className="chrome-actions">
         <label className="mission-select">

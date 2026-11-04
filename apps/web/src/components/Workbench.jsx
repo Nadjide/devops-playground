@@ -5,6 +5,7 @@ import { getLabManifest } from '@devops-playground/lab-core';
 import { useSessionClient, useSessionState } from '../session/SessionContext.jsx';
 import { useSessionActions } from '../session/SessionActions.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { isLayout, useLayoutPreference } from '../hooks/useLayoutPreference.js';
 import { compactOrder, desktopGroups, missionTab, panels } from '../panels/registry.js';
 import { PanelFrame } from '../panels/PanelFrame.jsx';
 import { MissionSidebar } from './MissionSidebar.jsx';
@@ -37,8 +38,13 @@ function PanelArea({ groupId, selected, onSelect, toolbar = null }) {
   );
 }
 
+const validSelection = (value) => value && Object.entries(desktopGroups).every(([groupId, group]) => group.panels.includes(value[groupId]));
+
 function DesktopWorkbench() {
-  const [selection, setSelection] = useState({ primary: 'docker', secondary: 'monitoring', drawer: 'terminal' });
+  const [selection, setSelection] = useLayoutPreference('desktopSelection',
+    { primary: 'docker', secondary: 'monitoring', drawer: 'terminal' }, validSelection);
+  const [columns, setColumns] = useLayoutPreference('desktopColumns', null, isLayout(['workspace-primary', 'workspace-secondary']));
+  const [rows, setRows] = useLayoutPreference('desktopRows', null, isLayout(['workspace-main', 'workspace-drawer']));
   const [drawerCollapsed, setDrawerCollapsed] = useState(false);
   const drawerRef = useRef(null);
   const select = (groupId) => (panelId) => setSelection((current) => ({ ...current, [groupId]: panelId }));
@@ -74,9 +80,19 @@ function DesktopWorkbench() {
         <MissionSidebar />
       </aside>
       <main className="workspace" aria-label="Workspace">
-        <Group orientation="vertical" className="panel-group">
+        <Group
+          orientation="vertical"
+          className="panel-group"
+          defaultLayout={rows ?? undefined}
+          onLayoutChanged={(layout, meta) => meta?.isUserInteraction && setRows(layout)}
+        >
           <Panel id="workspace-main" minSize="30%">
-            <Group orientation="horizontal" className="panel-group">
+            <Group
+              orientation="horizontal"
+              className="panel-group"
+              defaultLayout={columns ?? undefined}
+              onLayoutChanged={(layout, meta) => meta?.isUserInteraction && setColumns(layout)}
+            >
               <Panel id="workspace-primary" defaultSize="56%" minSize="30%">
                 <PanelArea groupId="primary" selected={selection.primary} onSelect={select('primary')} />
               </Panel>
@@ -141,7 +157,7 @@ function MissionSummary({ onOpen }) {
 }
 
 function CompactWorkbench() {
-  const [selected, setSelected] = useState('mission');
+  const [selected, setSelected] = useLayoutPreference('compactTab', 'mission', (value) => compactOrder.includes(value));
   const items = compactOrder.map((id) => (id === 'mission' ? missionTab : panels[id]));
   const panel = panels[selected];
   const Component = panel?.Component;
@@ -198,8 +214,18 @@ export function Workbench() {
 
 function SessionBanner() {
   const client = useSessionClient();
-  const { session } = useSessionState();
+  const { session, recovery, restored } = useSessionState();
   const { requestLifecycle } = useSessionActions();
+  if (recovery) {
+    return (
+      <div className="banner banner-danger" role="alert">
+        <AlertTriangle aria-hidden="true" size={14} />
+        <span>Saved progress could not be restored: {recovery.message} A new session was started instead.</span>
+        <button type="button" className="button" onClick={() => client.discardSavedProgress()}>Discard saved progress</button>
+        <button type="button" className="button button-quiet" onClick={() => client.continueWithoutSaving()}>Continue without saving</button>
+      </div>
+    );
+  }
   if (session.status === 'ended') {
     return (
       <div className="banner banner-neutral" role="status">
@@ -213,6 +239,14 @@ function SessionBanner() {
       <div className="banner banner-warning" role="status">
         <LoaderCircle aria-hidden="true" size={14} className="spin" />
         <span>{session.status === 'resetting' ? 'Resetting the session…' : 'Ending the session…'}</span>
+      </div>
+    );
+  }
+  if (restored && session.status === 'active') {
+    return (
+      <div className="banner banner-neutral" role="status">
+        <span>Restored your saved demo session (generation {session.generation}). Work that was running when the page closed was cancelled.</span>
+        <button type="button" className="button" onClick={(event) => requestLifecycle('session.reset', { returnFocus: event.currentTarget })}>Reset session</button>
       </div>
     );
   }

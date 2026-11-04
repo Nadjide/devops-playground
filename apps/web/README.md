@@ -73,6 +73,22 @@ known-good release and verifies health and version. Cancel is offered only
 before deploy changes the service. The panel is labeled Simulated pipeline in
 Demo mode and stays distinct from the repository GitHub Actions workflow.
 
+## Saved Progress
+
+The demo saves a versioned checkpoint (`devops-playground:demo-checkpoint:v1`,
+at most 512 KiB) in local storage shortly after each change and when the page is
+hidden. Layout preferences (selected tabs, panel sizes) live under a separate
+key. On reload the session is validated and hydrated: work that was running is
+reconciled as cancelled, an interrupted start is reported as stopped, and
+objectives are re-evaluated. Corrupt, incompatible, or oversized saved progress
+starts a fresh session and offers an explicit choice to discard it or continue
+without saving. Denied storage or a full quota only disables saving. Observation
+ages are shown and marked stale after 30 seconds.
+
+`npm run build:playground` writes the static site to `apps/web/dist`; any
+static file server can host it, and `npm run preview --workspace @devops-playground/web`
+serves it locally on `http://127.0.0.1:4173`.
+
 ## Layout
 
 At widths of 1024 px and above the workbench uses a mission sidebar, two

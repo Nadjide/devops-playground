@@ -52,6 +52,8 @@ export function TerminalPanel() {
     const fit = new FitAddon();
     terminal.loadAddon(fit);
     terminal.open(host);
+    // Let Tab move focus out of the terminal: no keyboard trap (WCAG 2.1.2).
+    terminal.attachCustomKeyEventHandler((event) => event.key !== 'Tab');
 
     let line = '';
     let busy = false;

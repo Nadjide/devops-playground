@@ -6,6 +6,7 @@ import { evaluateMission } from '../missions/evaluate.js';
 import { getFixture } from '../fixtures/catalog.js';
 import { createSession, emptyPipeline, freshMission, reduceSession, SessionStateError } from './session.js';
 import { isCancellable } from '../pipeline/recorder.js';
+import { hydrateSession } from '../checkpoint/checkpoint.js';
 import { createSystemClock, delay } from './clock.js';
 import { sanitizeLogMessage } from '../commands/sanitize.js';
 import { AbortedError, DomainError, OperationFailure } from './errors.js';
@@ -485,7 +486,23 @@ export function createLabRuntime({
     mode,
     backend: executor.backend ?? 'Execution backend',
     capabilities: () => [...supported],
-    async start() {
+    async start({ restore = null } = {}) {
+      if (restore) {
+        const hydrated = hydrateSession(restore, { now: new Date(clock.now()).toISOString() });
+        if (hydrated.labId !== lab.id || hydrated.fixtureId !== fixtureId || hydrated.mode !== mode) {
+          throw new DomainError('CHECKPOINT_MISMATCH', 'The saved session belongs to another lab, fixture, or mode.', { status: 409 });
+        }
+        session = hydrated;
+        await executor.restore?.({ session: clone(session) });
+        if (['active', 'degraded'].includes(session.status)) {
+          // Recording the restore re-evaluates state-based objectives against the hydrated snapshot.
+          emitLogs([{
+            serviceId: null, stream: 'system', level: 'info', at: timestamp(),
+            message: 'Session restored from a browser checkpoint; interrupted work was cancelled.',
+          }]);
+        }
+        return clone(session);
+      }
       const sessionId = nextId();
       const createdAt = new Date(clock.now()).toISOString();
       const setup = await executor.setup({ labId: lab.id, fixtureId, sessionId, generation: 1, now: createdAt });

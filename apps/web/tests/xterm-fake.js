@@ -13,6 +13,10 @@ export class FakeTerminal {
 
   loadAddon() {}
 
+  attachCustomKeyEventHandler(handler) {
+    this.keyHandler = handler;
+  }
+
   open(host) {
     this.host = host;
   }
