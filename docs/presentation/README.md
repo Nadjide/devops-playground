@@ -7,7 +7,7 @@ local Docker evidence identified separately.
 
 | Asset | Source and execution mode |
 | --- | --- |
-| [Walkthrough](../demo/devops-playground.mp4) | Browser recording of the static **simulator**, 1600 x 1000, H.264, no audio, four chapters |
+| [Walkthrough download](../demo/devops-playground.mp4?raw=1) | Browser recording of the static **simulator**, 1600 x 1000, H.264, no audio, four chapters |
 | [README preview](../demo/devops-playground.gif) | Four five-second excerpts from the recording, 960px wide, 6 fps |
 | [Recording metadata](../demo/recording.json) | Source commit, mode, viewport, duration, chapters, backend-request count |
 | `demo-mission-complete.png` | Simulated API recovery, health/version, terminal, completed objectives |
@@ -25,6 +25,9 @@ The video shows the browser simulator throughout. It is not a recording of
 cloud services or a claim about deployment speed. No application state, UI,
 or API response has been substituted. The application implements the labeled
 simulation. The GIF removes time between excerpts without changing their speed.
+
+The GIF plays inline in the README. GitHub serves the full MP4 as a file
+download; its links use `?raw=1` to bypass the repository file viewer.
 
 ## Regenerate the Demo
 

@@ -39,11 +39,11 @@ Azurite; no cloud account or paid cloud service is required.
 ## Demo
 
 <p align="center">
-  <a href="docs/demo/devops-playground.mp4"><img src="docs/demo/devops-playground.gif" alt="Browser demo excerpts showing API recovery, release rollback, S3 storage and Azure Blob storage" width="960"></a>
+  <a href="docs/demo/devops-playground.mp4?raw=1"><img src="docs/demo/devops-playground.gif" alt="Browser demo excerpts showing API recovery, release rollback, S3 storage and Azure Blob storage" width="960"></a>
 </p>
 
-**[Watch the 1-minute walkthrough](docs/demo/devops-playground.mp4)** with chapters
-for API recovery, the delivery pipeline, S3, and Azure Blob.
+**[Download the full walkthrough](docs/demo/devops-playground.mp4?raw=1)**
+(MP4, 1 min 04 s, 3 MB), with chapters for API recovery, the pipeline, S3, and Azure Blob.
 
 Recorded in the running **browser simulator**, with simulation labels visible.
 The GIF contains four short excerpts; the video preserves actual interaction
