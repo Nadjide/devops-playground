@@ -1,0 +1,29 @@
+{
+  "sourceCommit": "40f00986043b1243c51129c257dce75b479be3bc",
+  "mode": "demo",
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "durationSeconds": 63.8,
+  "chapters": [
+    {
+      "title": "Restore a stopped API",
+      "start": 0.001
+    },
+    {
+      "title": "Test, build, deploy, verify, and roll back",
+      "start": 13.697
+    },
+    {
+      "title": "Provision S3 storage",
+      "start": 33.018
+    },
+    {
+      "title": "Provision Azure Blob storage",
+      "start": 45.906
+    }
+  ],
+  "preview": "Four 5-second excerpts, 6 fps, 960px wide; no fabricated application state.",
+  "backendRequests": 0
+}
